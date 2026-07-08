@@ -1,0 +1,18 @@
+schema_version = "1.0.0"
+
+id = "scenecast"
+version = "1.0.0"
+name = "SceneCast"
+tagline = "Record your modeling session and replay it as a tutorial or timelapse"
+maintainer = "Alberto (AlbertoCGArt)"
+type = "add-on"
+website = "https://github.com/AlbertoCGArt/scenecast"
+
+blender_version_min = "4.2.0"
+
+license = ["SPDX:GPL-3.0-or-later"]
+
+tags = ["3D View", "Import-Export"]
+
+[permissions]
+files = "Export recorded sessions as video or image sequences"

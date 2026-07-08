@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+dist/
+.pytest_cache/
+*.blend1
+
+# Local project export artifact (not source)
+scenecast-project.zip
+
+# Defensive: PRO code must never live in the public repo.
+# The paid modules belong in the sibling private repo ../scenecast-pro/.
+scenecast/pro/
