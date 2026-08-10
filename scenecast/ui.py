@@ -5,7 +5,7 @@ from bpy.types import Panel
 
 from .state import SESSION
 from .viewnav import _any_nonobject_mode
-from .overlay import _collapse
+from .overlay import _collapse, keys_for_step
 
 # ----------------------------------------------------------------------------
 class SCENECAST_PT_panel(Panel):
@@ -92,7 +92,7 @@ class SCENECAST_PT_panel(Panel):
                       icon='RESTRICT_SELECT_OFF')
         elif act:
             box.label(text="Active: %s" % act, icon='RESTRICT_SELECT_OFF')
-        keys = step.get("keys", [])
+        keys = keys_for_step(idx)
         if keys:
             box.label(text="Keys: " + "  ".join(_collapse(keys)[-6:]), icon='EVENT_A')
         box.label(text="t + %.1fs" % (step["t"] - t0))

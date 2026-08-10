@@ -10,6 +10,7 @@ from .state import SESSION, _EXPORT, WATCHDOG_DT
 from .viewnav import (_tag_redraw, _exit_all_edit, _any_nonobject_mode,
                       _find_view3d_context)
 from .capture import _capture_step, _watchdog_tick, _restore_collections
+from .overlay import keys_for_step
 from .replay import _apply_step_geometry, _play_tick
 from .exporter import (_export_frame_handler, _resolve_export_path,
                        _resolve_export_dir, _stash_render, _restore_render,
@@ -62,6 +63,8 @@ class SCENECAST_OT_toggle(Operator):
             SESSION.applying_until = 0.0
             SESSION.key_buffer.clear()
             SESSION.pending_keys.clear()
+            SESSION.key_log.clear()
+            SESSION.keys_captured_total = 0
             try:
                 _capture_step()     # baseline: the scene before anything happens
             except Exception:
@@ -79,7 +82,7 @@ class SCENECAST_OT_toggle(Operator):
                 bpy.app.timers.register(_keylogger_watchdog, first_interval=0.5)
             self.report({'INFO'}, "Recording started")
         else:
-            n_keyed = sum(1 for s in SESSION.steps if s.get("keys"))
+            n_keyed = sum(1 for i in range(len(SESSION.steps)) if keys_for_step(i))
             print("[SceneCast] session: %d steps, %d keystrokes captured, "
                   "%d steps carry keys, logger attached=%s"
                   % (len(SESSION.steps), SESSION.keys_captured_total,
@@ -107,6 +110,10 @@ class SCENECAST_OT_clear(Operator):
         _restore_collections()
         SESSION.steps.clear()
         SESSION.all_names.clear()
+        SESSION.key_log.clear()
+        SESSION.key_buffer.clear()
+        SESSION.pending_keys.clear()
+        SESSION.keys_captured_total = 0
         SESSION.playing = False
         context.scene["scenecast_playhead"] = 0
         self.report({'INFO'}, "Session cleared")

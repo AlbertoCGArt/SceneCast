@@ -11,6 +11,7 @@ PLAY_DT = 1.0 / 30.0       # playback timer tick
 WATCHDOG_DT = 0.7          # edit-mode capture safety-net interval
 KEY_FADE = 1.8             # seconds a live keystroke stays visible
 KEY_MAX_SHOWN = 5          # max keystroke chips drawn at once
+KEY_LOOKBACK = 2.0         # seconds of keys to credit to the very first step
 
 # Viewport navigation never fires the depsgraph, so view changes are polled.
 # Thresholds are deliberately loose: they gate whole steps, and an orbit that
@@ -38,8 +39,11 @@ class _Session:
         self.last_stamp = 0.0
         self.applying_until = 0.0
         self.original_collections = {}   # obj_name -> [original collection names]
-        self.key_buffer = []             # [(text, timestamp)] live keystrokes
+        self.key_buffer = []             # [(text, timestamp, count)] live overlay
         self.pending_keys = []           # keystrokes since the last captured step
+        self.key_log = []                # [(text, timestamp)] whole recording;
+                                         # lets steps claim keys by time window
+                                         # instead of racing the pending buffer
         self.keylogger_running = False
         self.keylogger_seq = 0           # bumped each (re)arm; stale loggers retire
         self.keylogger_heartbeat = 0.0   # last modal tick; watchdog death-detect

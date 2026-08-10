@@ -5,7 +5,7 @@ import bpy
 import blf
 from bpy.types import Operator
 
-from .state import SESSION, KEY_FADE, KEY_MAX_SHOWN
+from .state import SESSION, KEY_FADE, KEY_MAX_SHOWN, KEY_LOOKBACK
 from .viewnav import _tag_redraw
 
 _REPEAT_WINDOW = 1.2       # seconds within which a repeated key collapses to xN
@@ -23,6 +23,31 @@ def _push_key(txt):
     buf.append((txt, now, 1))
     if len(buf) > 64:
         del buf[:-64]
+
+
+def keys_for_step(idx):
+    """Keys belonging to step `idx`, newest attribution method first.
+
+    A step's own list is used when it has one, but that list is filled from a
+    pending buffer that whichever step lands next drains -- and camera steps
+    fire on a 0.7s clock, so they routinely drain keys that belong to the edit
+    the artist was actually making. The timestamped session log doesn't race:
+    a step claims the keys pressed between the previous step and itself.
+    """
+    steps = SESSION.steps
+    if not (0 <= idx < len(steps)):
+        return []
+    own = steps[idx].get("keys")
+    if own:
+        return own
+    log = SESSION.key_log
+    if not log:
+        return []
+    t_end = steps[idx].get("t")
+    if t_end is None:
+        return []
+    t_start = steps[idx - 1].get("t", t_end) if idx > 0 else t_end - KEY_LOOKBACK
+    return [txt for txt, ts in log if t_start < ts <= t_end]
 
 
 def _collapse(keys):
@@ -181,6 +206,7 @@ class SCENECAST_OT_keylogger(Operator):
                 if txt:
                     _push_key(txt)
                     SESSION.pending_keys.append(txt)
+                    SESSION.key_log.append((txt, time.monotonic()))
                     SESSION.keys_captured_total += 1
                     if len(SESSION.pending_keys) > 64:
                         del SESSION.pending_keys[:-64]
@@ -254,7 +280,7 @@ def _overlay_chunks():
                 idx = None
         if idx is not None and 0 <= idx < len(SESSION.steps):
             step = SESSION.steps[idx]
-            for txt in _collapse(step.get("keys", []))[-KEY_MAX_SHOWN:]:
+            for txt in _collapse(keys_for_step(idx))[-KEY_MAX_SHOWN:]:
                 chunks.append((txt, 1.0))
             op_label = step.get("op", "")
     return chunks, op_label
