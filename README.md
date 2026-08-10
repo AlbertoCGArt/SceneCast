@@ -29,14 +29,21 @@ to show the evolution of a scene, build tutorials, or create progress videos.
 Edit > Preferences > Get Extensions > (dropdown) > Install from Disk >
 pick `dist/scenecast-<version>.zip`.
 
+> Because the zip carries `blender_manifest.toml` at its root, Blender 4.2+
+> installs it as an **extension**. It therefore appears under **Extensions**,
+> *not* in the legacy Add-ons list — that is expected. Enable it there.
+
 **Legacy add-on install (pre-4.2):** use the separate
 `dist/scenecast-<version>-legacy.zip`, which nests the files under
-`scenecast/`, via Edit > Preferences > Add-ons > Install.
-`python scripts/build.py` produces both zips.
+`scenecast/`, via Edit > Preferences > Add-ons > Install. That is the build
+that shows up in the Add-ons list. `python scripts/build.py` produces both.
+
+Either way the UI lives in the 3D viewport sidebar (**N**) under the
+**SceneCast** tab.
 
 ## Usage
 
-1. Open the N-panel > **Recorder** tab.
+1. Open the N-panel > **SceneCast** tab.
 2. Hit **Start Recording** and model. Steps accumulate live.
 3. Stop, drop to Object Mode, and **scrub** or **play** the timeline.
 4. Use the **Export** box to render the session to video.

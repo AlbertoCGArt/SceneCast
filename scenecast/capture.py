@@ -7,6 +7,7 @@ import bpy
 from .state import SESSION, DEBOUNCE, MAX_VERTS_FULL, WATCHDOG_DT
 from .viewnav import (_get_view3d_rv3d, classify_view, _tag_redraw,
                       _edit_mode_object)
+from .overlay import shortcut_for_operator
 
 # ----------------------------------------------------------------------------
 # Collection isolation (gather all recorded objects into one tidy collection)
@@ -214,10 +215,12 @@ def _capture_step():
 
     rv3d = _get_view3d_rv3d()
     op_name = ""
+    op_id = ""
     try:
         ops = bpy.context.window_manager.operators
         if len(ops):
             op_name = ops[-1].name or ops[-1].bl_idname
+            op_id = ops[-1].bl_idname
     except Exception:
         pass
 
@@ -225,6 +228,7 @@ def _capture_step():
     step = {
         "t": time.monotonic(),
         "op": op_name or "(edit)",
+        "op_id": op_id,
         "view": classify_view(rv3d),
         "active": active.name if active else "",
         "mode": active.mode if active else "OBJECT",
@@ -265,10 +269,20 @@ def _capture_step():
                 return                          # truly nothing changed
             # else: selection / cursor / pivot / mode changed -> record it
 
+    prev_op_id = SESSION.steps[-1].get("op_id", "") if SESSION.steps else ""
+
     SESSION.steps.append(step)
     SESSION.all_names.update(step["objs"].keys())
     step["keys"] = list(SESSION.pending_keys)
     SESSION.pending_keys.clear()
+    if not step["keys"] and op_id and op_id != prev_op_id:
+        # Nothing reached the logger (modal tool ate the keys, or it was
+        # dropped) -- fall back to the shortcut the operator is bound to.
+        # Guarded on a *changed* operator: wm.operators keeps reporting the
+        # last one, which would otherwise repeat the same key on every step.
+        combo = shortcut_for_operator(op_id)
+        if combo:
+            step["keys"] = [combo]
 
     try:
         sc = bpy.context.scene

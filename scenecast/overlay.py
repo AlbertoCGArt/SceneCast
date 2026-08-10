@@ -65,6 +65,60 @@ _KEY_LABELS = {
 }
 
 
+_SHORTCUT_CACHE = {}
+
+
+def _kmi_label(kmi):
+    mods = []
+    if kmi.ctrl:
+        mods.append("Ctrl")
+    if kmi.shift:
+        mods.append("Shift")
+    if kmi.alt:
+        mods.append("Alt")
+    if kmi.oskey:
+        mods.append("Cmd")
+    t = kmi.type
+    if t in _KEY_LABELS:
+        label = _KEY_LABELS[t]
+    elif len(t) == 1:
+        label = t
+    else:
+        label = t.replace("_", " ").title()
+    return "+".join(mods + [label]) if mods else label
+
+
+def shortcut_for_operator(idname):
+    """Keyboard shortcut bound to an operator id ('mesh.extrude_region' -> 'E').
+
+    Blender consumes keys pressed *inside* a running modal operator, so the
+    logger physically cannot see the Z and 5 of a G Z 5 move. Reading the
+    shortcut back out of the user keymap gives a correct label for what
+    triggered the step regardless. Cached: the keymap walk is not cheap.
+    """
+    if not idname:
+        return ""
+    if idname in _SHORTCUT_CACHE:
+        return _SHORTCUT_CACHE[idname]
+    out = ""
+    try:
+        kc = bpy.context.window_manager.keyconfigs.user
+        for km in kc.keymaps:
+            for kmi in km.keymap_items:
+                if kmi.idname != idname or not kmi.active:
+                    continue
+                if kmi.type in _SKIP_TYPES or kmi.type in _MOUSE_TYPES:
+                    continue               # prefer a real keyboard binding
+                out = _kmi_label(kmi)
+                break
+            if out:
+                break
+    except Exception:
+        out = ""
+    _SHORTCUT_CACHE[idname] = out
+    return out
+
+
 def _format_key(event, include_mouse):
     t = event.type
     if t in _SKIP_TYPES:
@@ -126,10 +180,11 @@ class SCENECAST_OT_keylogger(Operator):
         return {'PASS_THROUGH'}
 
     def invoke(self, context, event):
-        SESSION.keylogger_seq += 1
-        self._seq = SESSION.keylogger_seq
-        SESSION.keylogger_running = True
-        SESSION.keylogger_heartbeat = time.monotonic()
+        if context.window is None:
+            # Without a window the handler cannot attach and the operator would
+            # sit there capturing nothing. Fail loudly so the watchdog retries.
+            print("[SceneCast] keylogger: no window in context, not started")
+            return {'CANCELLED'}
         self._timer = None
         try:
             # A timer keeps the modal ticking so the watchdog can tell it is
@@ -138,7 +193,14 @@ class SCENECAST_OT_keylogger(Operator):
                 0.25, window=context.window)
         except Exception:
             self._timer = None
-        context.window_manager.modal_handler_add(self)
+        if not context.window_manager.modal_handler_add(self):
+            print("[SceneCast] keylogger: modal_handler_add refused")
+            self._remove_timer(context)
+            return {'CANCELLED'}
+        SESSION.keylogger_seq += 1
+        self._seq = SESSION.keylogger_seq
+        SESSION.keylogger_running = True
+        SESSION.keylogger_heartbeat = time.monotonic()
         return {'RUNNING_MODAL'}
 
     def _remove_timer(self, context):

@@ -43,5 +43,5 @@ class _Session:
 SESSION = _Session()
 
 _EXPORT = {"hold": 1, "n": 0, "last": -1, "follow": False,
-           "smooth": True, "editmode": False}
+           "smooth": True, "editmode": False, "stamp": False}
 

@@ -12,7 +12,8 @@ from .viewnav import (_tag_redraw, _exit_all_edit, _any_nonobject_mode,
 from .capture import _capture_step, _watchdog_tick, _restore_collections
 from .replay import _apply_step_geometry, _play_tick
 from .exporter import (_export_frame_handler, _resolve_export_path,
-                       _resolve_export_dir, _stash_render, _restore_render)
+                       _resolve_export_dir, _stash_render, _restore_render,
+                       setup_stamp)
 
 # ----------------------------------------------------------------------------
 def _keylogger_watchdog():
@@ -32,8 +33,15 @@ def _keylogger_watchdog():
     alive = (SESSION.keylogger_running
              and (now - SESSION.keylogger_heartbeat) < 1.5)
     if not alive:
+        # A timer callback runs in a restricted context where context.window is
+        # None, and modal_handler_add() needs a window to attach to -- without
+        # the override the modal is created but never receives a single event.
+        win, area, region = _find_view3d_context()
+        if win is None:
+            return 0.5                   # no viewport yet; try again next tick
         try:
-            bpy.ops.scenecast.keylogger('INVOKE_DEFAULT')
+            with bpy.context.temp_override(window=win, area=area, region=region):
+                bpy.ops.scenecast.keylogger('INVOKE_DEFAULT')
         except Exception as e:
             print("[SceneCast] keylogger (re)start failed:", e)
     return 0.5
@@ -206,12 +214,17 @@ class SCENECAST_OT_export(Operator):
             sc.frame_start = 1
             sc.frame_end = n * hold
 
+            stamp = bool(sc.scenecast_show_keys)
+            if stamp:
+                setup_stamp(rnd, {'SMALL': 14, 'MEDIUM': 18,
+                                  'LARGE': 24}.get(sc.scenecast_keys_size, 14))
+
             use_edit = sc.scenecast_show_edit and sc.scenecast_export_edit
             _apply_step_geometry(SESSION.steps[0], show_edit=use_edit)
-            _EXPORT.update(hold=hold, n=n, last=0,
+            _EXPORT.update(hold=hold, n=n, last=-1,
                            follow=sc.scenecast_export_follow_view,
                            smooth=sc.scenecast_smooth_view,
-                           editmode=use_edit)
+                           editmode=use_edit, stamp=stamp)
 
             if _export_frame_handler not in bpy.app.handlers.frame_change_pre:
                 bpy.app.handlers.frame_change_pre.append(_export_frame_handler)
