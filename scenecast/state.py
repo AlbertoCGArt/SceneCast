@@ -34,6 +34,9 @@ class _Session:
         self.key_buffer = []             # [(text, timestamp)] live keystrokes
         self.pending_keys = []           # keystrokes since the last captured step
         self.keylogger_running = False
+        self.keylogger_seq = 0           # bumped each (re)arm; stale loggers retire
+        self.keylogger_heartbeat = 0.0   # last modal tick; watchdog death-detect
+        self.keys_captured_total = 0     # running count this session (panel signal)
         self.export_active = False       # true while rendering an export
         self.export_step_idx = 0
 

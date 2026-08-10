@@ -97,9 +97,16 @@ class SCENECAST_OT_keylogger(Operator):
     bl_description = "Internal: captures keystrokes while recording"
 
     def modal(self, context, event):
+        # A newer logger was re-armed (e.g. after a menu dropped us) -> retire
+        # quietly without clearing the running flag the new one now owns.
+        if self._seq != SESSION.keylogger_seq:
+            self._remove_timer(context)
+            return {'FINISHED'}
         if not SESSION.recording:
             SESSION.keylogger_running = False
+            self._remove_timer(context)
             return {'FINISHED'}
+        SESSION.keylogger_heartbeat = time.monotonic()   # proof-of-life for watchdog
         try:
             if event.value == 'PRESS':
                 try:
@@ -110,6 +117,7 @@ class SCENECAST_OT_keylogger(Operator):
                 if txt:
                     _push_key(txt)
                     SESSION.pending_keys.append(txt)
+                    SESSION.keys_captured_total += 1
                     if len(SESSION.pending_keys) > 64:
                         del SESSION.pending_keys[:-64]
                     _tag_redraw()
@@ -118,9 +126,28 @@ class SCENECAST_OT_keylogger(Operator):
         return {'PASS_THROUGH'}
 
     def invoke(self, context, event):
+        SESSION.keylogger_seq += 1
+        self._seq = SESSION.keylogger_seq
         SESSION.keylogger_running = True
+        SESSION.keylogger_heartbeat = time.monotonic()
+        self._timer = None
+        try:
+            # A timer keeps the modal ticking so the watchdog can tell it is
+            # alive even when the artist isn't pressing keys.
+            self._timer = context.window_manager.event_timer_add(
+                0.25, window=context.window)
+        except Exception:
+            self._timer = None
         context.window_manager.modal_handler_add(self)
         return {'RUNNING_MODAL'}
+
+    def _remove_timer(self, context):
+        if getattr(self, "_timer", None) is not None:
+            try:
+                context.window_manager.event_timer_remove(self._timer)
+            except Exception:
+                pass
+            self._timer = None
 
 
 _draw_handle = None

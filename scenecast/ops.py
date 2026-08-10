@@ -15,6 +15,31 @@ from .exporter import (_export_frame_handler, _resolve_export_path,
                        _resolve_export_dir, _stash_render, _restore_render)
 
 # ----------------------------------------------------------------------------
+def _keylogger_watchdog():
+    """Keep the key-logger alive for the whole recording.
+
+    Two problems this solves: (1) a modal started from inside the Record
+    button's execute() often fails to attach -- launching it from this timer
+    runs it in a clean context; (2) Blender silently drops a passive modal
+    after a menu or modal tool (Shift+A, Grab, Extrude...), so only the first
+    keystroke ever gets captured. The logger stamps a heartbeat every ~0.25s;
+    if it goes quiet (dropped), we re-arm it. The logger's sequence check
+    retires any stale duplicate, so re-arming is always safe.
+    """
+    if not SESSION.recording:
+        return None                      # recording stopped -> let the timer die
+    now = time.monotonic()
+    alive = (SESSION.keylogger_running
+             and (now - SESSION.keylogger_heartbeat) < 1.5)
+    if not alive:
+        try:
+            bpy.ops.scenecast.keylogger('INVOKE_DEFAULT')
+        except Exception as e:
+            print("[SceneCast] keylogger (re)start failed:", e)
+    return 0.5
+
+
+# ----------------------------------------------------------------------------
 class SCENECAST_OT_toggle(Operator):
     bl_idname = "scenecast.toggle"
     bl_label = "Toggle Recording"
@@ -35,11 +60,8 @@ class SCENECAST_OT_toggle(Operator):
                 pass
             if not bpy.app.timers.is_registered(_watchdog_tick):
                 bpy.app.timers.register(_watchdog_tick, first_interval=WATCHDOG_DT)
-            if not SESSION.keylogger_running:
-                try:
-                    bpy.ops.scenecast.keylogger('INVOKE_DEFAULT')
-                except Exception as e:
-                    print("[SceneCast] keylogger start failed:", e)
+            if not bpy.app.timers.is_registered(_keylogger_watchdog):
+                bpy.app.timers.register(_keylogger_watchdog, first_interval=0.01)
             self.report({'INFO'}, "Recording started")
         else:
             self.report({'INFO'}, "Recording stopped (%d steps)" % len(SESSION.steps))
@@ -149,7 +171,9 @@ class SCENECAST_OT_export(Operator):
 
         sc = context.scene
         rnd = sc.render
-        hold = max(1, sc.scenecast_export_hold)
+        # Export speed tracks playback exactly: each step lasts the same
+        # "Hold (s)" used when scrubbing, converted to whole frames.
+        hold = max(1, round(sc.scenecast_step_hold * sc.scenecast_export_fps))
         fmt = sc.scenecast_export_format
 
         win, area, region = _find_view3d_context()

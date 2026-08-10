@@ -4,11 +4,70 @@ import time
 import numpy as np
 import bpy
 import bmesh
-from mathutils import Vector
+from mathutils import Vector, Matrix
 
 from .state import SESSION, APPLY_LOCKOUT, PLAY_DT
 from .viewnav import (_tag_redraw, _mode_set, _exit_all_edit,
                       _any_nonobject_mode, _restore_view, _blend_view)
+
+# ----------------------------------------------------------------------------
+# Motion smoothing (glide between steps instead of snapping frame-to-frame)
+# ----------------------------------------------------------------------------
+def _smoothstep(t):
+    """Ease-in-out clamp of t into [0, 1]."""
+    if t <= 0.0:
+        return 0.0
+    if t >= 1.0:
+        return 1.0
+    return t * t * (3.0 - 2.0 * t)
+
+
+def _lerp_coords(ca, cb, f):
+    """Linear blend of two equal-length flat coordinate buffers."""
+    return ca + (cb - ca) * f
+
+
+def _lerp_matrix(m0, m1, f):
+    """Blend two world matrices: lerp location & scale, slerp rotation."""
+    l0, r0, s0 = m0.decompose()
+    l1, r1, s1 = m1.decompose()
+    return Matrix.LocRotScale(l0.lerp(l1, f), r0.slerp(r1, f), s0.lerp(s1, f))
+
+
+def _interp_geometry(step_a, step_b, frac):
+    """Glide same-topology meshes and transforms from step_a toward step_b.
+
+    Called every playback/export frame between two integer steps so a moved
+    face or grabbed object slides instead of snapping. Only objects present in
+    BOTH steps with a matching vertex count are blended; topology changes were
+    already snapped by the base step apply, and Edit-Mode objects are left to
+    their bmesh cage.
+
+    Uses a LINEAR (constant-velocity) blend on purpose: it reads like the real
+    drag the artist did, not an eased keyframe animation.
+    """
+    f = 0.0 if frac < 0.0 else 1.0 if frac > 1.0 else frac
+    for name, a in step_a["objs"].items():
+        b = step_b["objs"].get(name)
+        if b is None:
+            continue
+        obj = bpy.data.objects.get(name)
+        if obj is None or obj.type != 'MESH' or obj.mode == 'EDIT':
+            continue
+        mesh = obj.data
+        ca, cb = a.get("coords"), b.get("coords")
+        if (a["vcount"] == b["vcount"] and ca is not None and cb is not None
+                and len(ca) == len(cb) and len(mesh.vertices) == a["vcount"]):
+            try:
+                mesh.vertices.foreach_set("co", _lerp_coords(ca, cb, f))
+                mesh.update()
+            except Exception:
+                pass
+        try:
+            obj.matrix_world = _lerp_matrix(a["mat"], b["mat"], f)
+        except Exception:
+            pass
+
 
 # ----------------------------------------------------------------------------
 # Replay core
@@ -238,6 +297,9 @@ def _play_tick():
         SESSION.play_last_idx = idx
         _apply_step_geometry(SESSION.steps[idx], show_edit=sc.scenecast_show_edit)
         sc["scenecast_playhead"] = idx
+
+    if sc.scenecast_smooth_view and idx < n - 1:
+        _interp_geometry(SESSION.steps[idx], SESSION.steps[idx + 1], frac)
 
     if sc.scenecast_restore_view:
         if sc.scenecast_smooth_view and idx < n - 1:

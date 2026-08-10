@@ -5,7 +5,7 @@ import bpy
 
 from .state import SESSION, _EXPORT
 from .viewnav import _restore_view, _blend_view
-from .replay import _apply_step_geometry
+from .replay import _apply_step_geometry, _interp_geometry
 
 # ----------------------------------------------------------------------------
 # Export
@@ -23,6 +23,11 @@ def _export_frame_handler(scene, depsgraph=None):
             _apply_step_geometry(SESSION.steps[idx], show_edit=_EXPORT["editmode"])
         except Exception as e:
             print("[SceneCast] export step error:", e)
+    if _EXPORT["smooth"] and not _EXPORT["editmode"] and idx < n - 1:
+        try:
+            _interp_geometry(SESSION.steps[idx], SESSION.steps[idx + 1], frac)
+        except Exception as e:
+            print("[SceneCast] export interp error:", e)
     if _EXPORT["follow"]:
         if _EXPORT["smooth"] and idx < n - 1:
             _blend_view(SESSION.steps[idx], SESSION.steps[idx + 1], frac)

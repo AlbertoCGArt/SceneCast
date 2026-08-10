@@ -19,7 +19,7 @@ from .replay import _play_tick
 from .exporter import _export_frame_handler
 from .overlay import SCENECAST_OT_keylogger, _add_draw_handler, _remove_draw_handler
 from .ops import (SCENECAST_OT_toggle, SCENECAST_OT_clear, SCENECAST_OT_step,
-                  SCENECAST_OT_play, SCENECAST_OT_export)
+                  SCENECAST_OT_play, SCENECAST_OT_export, _keylogger_watchdog)
 from .ui import SCENECAST_PT_panel
 from .props import register_props, unregister_props
 
@@ -76,7 +76,7 @@ def unregister():
     SESSION.recording = False          # let the modal key logger self-terminate
     _remove_handler()
     _remove_draw_handler()
-    for tmr in (_settle_tick, _play_tick, _watchdog_tick):
+    for tmr in (_settle_tick, _play_tick, _watchdog_tick, _keylogger_watchdog):
         if bpy.app.timers.is_registered(tmr):
             try:
                 bpy.app.timers.unregister(tmr)

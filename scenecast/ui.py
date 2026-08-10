@@ -31,6 +31,9 @@ class SCENECAST_PT_panel(Panel):
         layout.label(text="Captured steps: %d" % n)
         if SESSION.recording:
             layout.label(text="Live -- edit your meshes...", icon='RADIOBUT_ON')
+            klbl = "Keys captured: %d" % SESSION.keys_captured_total
+            layout.label(text=klbl if SESSION.keys_captured_total
+                         else klbl + "  (press keys...)", icon='EVENT_A')
 
         icol = layout.column(align=True)
         icol.prop(sc, "scenecast_isolate")
@@ -106,9 +109,9 @@ class SCENECAST_PT_panel(Panel):
         ebox.label(text="Export", icon='RENDER_ANIMATION')
         ebox.prop(sc, "scenecast_export_format", text="")
         ebox.prop(sc, "scenecast_export_path", text="")
-        er = ebox.row(align=True)
-        er.prop(sc, "scenecast_export_fps")
-        er.prop(sc, "scenecast_export_hold")
+        ebox.prop(sc, "scenecast_export_fps")
+        ebox.label(text="Speed: %.2fs / step  (matches the Hold above)"
+                        % sc.scenecast_step_hold, icon='TIME')
         ebox.prop(sc, "scenecast_export_follow_view")
         sub = ebox.row()
         sub.enabled = sc.scenecast_show_edit

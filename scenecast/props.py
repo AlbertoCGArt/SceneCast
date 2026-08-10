@@ -13,7 +13,7 @@ _PROP_NAMES = (
     "scenecast_show_keys", "scenecast_keys_mouse", "scenecast_keys_size",
     "scenecast_isolate", "scenecast_collection_name",
     "scenecast_export_format", "scenecast_export_path",
-    "scenecast_export_fps", "scenecast_export_hold",
+    "scenecast_export_fps",
     "scenecast_export_follow_view", "scenecast_export_edit",
 )
 
@@ -40,8 +40,9 @@ def register_props():
         description="Seconds each step lasts during playback")
     S.scenecast_loop = BoolProperty(name="Loop", default=False)
     S.scenecast_smooth_view = BoolProperty(
-        name="Smooth Camera", default=True,
-        description="Glide the camera between recorded views instead of hard cuts")
+        name="Smooth Motion", default=True,
+        description="Glide geometry and camera between steps instead of snapping, "
+                    "so moves and edits slide smoothly (playback and export)")
     S.scenecast_show_edit = BoolProperty(
         name="Show Edit Mode", default=False,
         description="Replay steps recorded in Edit Mode with the edit cage visible "
@@ -75,9 +76,6 @@ def register_props():
         name="Output", subtype='FILE_PATH', default="//scenecast_session.mp4",
         description="MP4: file path.  PNG: folder for the frames")
     S.scenecast_export_fps = IntProperty(name="FPS", default=24, min=1, max=120)
-    S.scenecast_export_hold = IntProperty(
-        name="Frames/Step", default=12, min=1, max=240,
-        description="How many frames each step lasts in the export")
     S.scenecast_export_follow_view = BoolProperty(
         name="Use Recorded Views", default=False,
         description="Restore each step's viewport angle in the export")
