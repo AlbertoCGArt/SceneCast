@@ -1,5 +1,29 @@
 # Changelog
 
+## Unreleased
+
+- **Smooth Motion** — geometry and object transforms now interpolate between
+  steps in playback and export, so moves and edits glide instead of snapping.
+  Uses a linear (constant-velocity) blend so it reads like the real drag
+  rather than an eased keyframe animation. Same-topology objects only.
+  (Renamed from "Smooth Camera", which only moved the viewport.)
+- **Export speed matches playback** — step duration is derived from the
+  playback "Hold (s)" value (`frames = hold × fps`) instead of a separate
+  Frames/Step count. The two used different units, so exports ran faster than
+  the scrub. The redundant Frames/Step property was removed and the panel now
+  shows the resulting seconds-per-step.
+- **Reliable keystroke capture** — Blender silently drops a passive modal
+  operator after a menu or modal tool runs (Shift+A, Grab, Extrude), so only
+  the first keystroke of a session was ever captured. The logger now stamps a
+  heartbeat and a watchdog re-arms it when it goes quiet; a sequence counter
+  retires stale duplicates so re-arming never double-counts. The panel shows a
+  live "Keys captured" count while recording.
+- **Keystroke repeat-collapse** — repeated keys fold into a counter
+  (`X ×3`) both live and per-step.
+- **Build** — `scripts/build.py` emits both the 4.2+ extension zip and the
+  nested-layout legacy add-on zip; fixed zip entry names using a backslash
+  separator on Windows for `--pro` builds.
+
 ## 1.0.0
 
 Initial release.

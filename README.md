@@ -29,8 +29,10 @@ to show the evolution of a scene, build tutorials, or create progress videos.
 Edit > Preferences > Get Extensions > (dropdown) > Install from Disk >
 pick `dist/scenecast-<version>.zip`.
 
-**Legacy add-on install:** the same zip works via
-Edit > Preferences > Add-ons > Install.
+**Legacy add-on install (pre-4.2):** use the separate
+`dist/scenecast-<version>-legacy.zip`, which nests the files under
+`scenecast/`, via Edit > Preferences > Add-ons > Install.
+`python scripts/build.py` produces both zips.
 
 ## Usage
 
@@ -67,7 +69,7 @@ scenecast/
   props.py       scene property registration
 ```
 
-## Known limitations (v0.6)
+## Known limitations (v1.0)
 
 - Sessions are in-memory only; closing the file discards the recording.
 - Memory grows with mesh size × steps (differential storage is the next
@@ -76,6 +78,14 @@ scenecast/
 - Objects are tracked by name; renaming mid-session breaks the thread.
 - Menu popups can't be captured (no API); the keystroke + operator-label
   overlay conveys the trigger and result instead.
+- Keys pressed *inside* a running modal operator (the `Z` `5` of a `G` `Z` `5`
+  move) are consumed by that operator and never reach the logger; the trigger
+  key plus the operator label are what get recorded.
+- The keystroke overlay is a viewport draw handler, and `render.opengl` does
+  not run those — so keys are visible on screen but do **not** appear in
+  exported video. A composited text pass is on the roadmap.
+- Smooth Motion only blends objects whose topology is unchanged between two
+  steps; a vert-count change snaps (you can't morph 8 verts into 12).
 - "Edit Mode in Export" is experimental; mode switching during render can
   be fragile.
 
