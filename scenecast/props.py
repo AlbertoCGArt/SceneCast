@@ -10,6 +10,7 @@ _PROP_NAMES = (
     "scenecast_playhead", "scenecast_restore_view", "scenecast_follow_tip",
     "scenecast_step_hold", "scenecast_loop", "scenecast_smooth_view",
     "scenecast_show_edit", "scenecast_capture_context", "scenecast_restore_context",
+    "scenecast_capture_view",
     "scenecast_show_keys", "scenecast_keys_mouse", "scenecast_keys_size",
     "scenecast_isolate", "scenecast_collection_name",
     "scenecast_export_format", "scenecast_export_path",
@@ -51,6 +52,11 @@ def register_props():
         name="Capture Selection & Cursor", default=True,
         description="Record selection, 3D cursor, pivot and select-mode changes as "
                     "their own steps even when no geometry moves (key for tutorials)")
+    S.scenecast_capture_view = BoolProperty(
+        name="Capture Camera Moves", default=True,
+        description="Record orbiting, panning and zooming as their own steps. "
+                    "Viewport navigation never fires a depsgraph update, so "
+                    "without this nothing is recorded until the first mesh edit")
     S.scenecast_restore_context = BoolProperty(
         name="Restore Selection & Cursor", default=True,
         description="On playback/scrub, re-apply each step's selection, 3D cursor and "

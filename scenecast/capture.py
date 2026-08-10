@@ -4,7 +4,8 @@ import time
 import numpy as np
 import bpy
 
-from .state import SESSION, DEBOUNCE, MAX_VERTS_FULL, WATCHDOG_DT
+from .state import (SESSION, DEBOUNCE, MAX_VERTS_FULL, WATCHDOG_DT,
+                    VIEW_ROT_EPS, VIEW_DIST_EPS, VIEW_LOC_EPS)
 from .viewnav import (_get_view3d_rv3d, classify_view, _tag_redraw,
                       _edit_mode_object)
 from .overlay import shortcut_for_operator
@@ -189,6 +190,46 @@ def _capture_context(step):
         pass
 
 
+def _view_differs(a, b):
+    """True if the viewport moved enough between two steps to be worth a step.
+
+    Orbiting, panning and zooming never touch the depsgraph, so without this
+    a session records nothing at all until the first mesh edit -- the camera
+    work an artist does while explaining is simply missing. Thresholds are
+    relative to view distance so the same orbit feels equal when zoomed in.
+    """
+    if "rot" not in a or "rot" not in b:
+        return False
+    if a.get("persp") != b.get("persp"):
+        return True
+    try:
+        if abs(a["rot"].dot(b["rot"])) < VIEW_ROT_EPS:
+            return True                  # quaternion double-cover: compare |dot|
+        scale = max(0.001, a["dist"])
+        if abs(a["dist"] - b["dist"]) / scale > VIEW_DIST_EPS:
+            return True
+        if (a["loc"] - b["loc"]).length / scale > VIEW_LOC_EPS:
+            return True
+    except Exception:
+        return False
+    return False
+
+
+def _view_moved_since_last_step():
+    """Compare the live viewport against the most recent recorded step."""
+    if not SESSION.steps:
+        return False
+    rv3d = _get_view3d_rv3d()
+    if rv3d is None:
+        return False
+    try:
+        now = {"persp": rv3d.view_perspective, "rot": rv3d.view_rotation,
+               "dist": rv3d.view_distance, "loc": rv3d.view_location}
+    except Exception:
+        return False
+    return _view_differs(SESSION.steps[-1], now)
+
+
 def _context_equal(a, b):
     """True if interaction state (not geometry) is identical between two steps."""
     for key in ("active", "sel_objects", "pivot", "orientation", "select_mode"):
@@ -263,11 +304,16 @@ def _capture_step():
                             for k in step["objs"]))
         if geo_same:
             sc = bpy.context.scene
+            # A pure camera move is a real step for a tutorial, so it survives
+            # the "nothing changed" guards below.
+            view_new = (getattr(sc, "scenecast_capture_view", False)
+                        and _view_differs(prev, step))
             if not sc.scenecast_capture_context:
-                return                          # geometry-only mode: nothing new
-            if _context_equal(prev, step):
+                if not view_new:
+                    return                      # geometry-only mode: nothing new
+            elif _context_equal(prev, step) and not view_new:
                 return                          # truly nothing changed
-            # else: selection / cursor / pivot / mode changed -> record it
+            # else: selection / cursor / pivot / mode / view changed -> record it
 
     prev_op_id = SESSION.steps[-1].get("op_id", "") if SESSION.steps else ""
 
@@ -308,10 +354,15 @@ def _settle_tick():
 
 
 def _watchdog_tick():
-    """Safety net: while recording in Edit Mode, diff the active mesh on a clock
-    so steps register even when depsgraph events don't fire per edit."""
+    """Safety net on a clock, for the two things depsgraph events miss.
+
+    Edit-Mode mesh edits don't always fire per edit, and viewport navigation
+    (orbit/pan/zoom) never fires at all -- so a session would record nothing
+    until the first geometry change.
+    """
     if not SESSION.recording:
         return None
+    captured = False
     obj = _edit_mode_object()
     if obj is not None and obj.type == 'MESH':
         try:
@@ -327,8 +378,17 @@ def _watchdog_tick():
                     changed = not np.array_equal(prev["coords"], coords)
             if changed:
                 _capture_step()
+                captured = True
         except Exception as e:
             print("[SceneCast] watchdog error:", e)
+    if not captured:
+        try:
+            sc = bpy.context.scene
+            if getattr(sc, "scenecast_capture_view", False) \
+                    and _view_moved_since_last_step():
+                _capture_step()
+        except Exception as e:
+            print("[SceneCast] view watchdog error:", e)
     return WATCHDOG_DT
 
 

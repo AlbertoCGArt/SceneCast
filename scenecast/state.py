@@ -12,6 +12,13 @@ WATCHDOG_DT = 0.7          # edit-mode capture safety-net interval
 KEY_FADE = 1.8             # seconds a live keystroke stays visible
 KEY_MAX_SHOWN = 5          # max keystroke chips drawn at once
 
+# Viewport navigation never fires the depsgraph, so view changes are polled.
+# Thresholds are deliberately loose: they gate whole steps, and an orbit that
+# creeps under them would otherwise spam one step per watchdog tick.
+VIEW_ROT_EPS = 0.9995      # |quaternion dot| below this counts as rotated
+VIEW_DIST_EPS = 0.04       # zoom delta as a fraction of view distance
+VIEW_LOC_EPS = 0.04        # pan delta as a fraction of view distance
+
 # ----------------------------------------------------------------------------
 # Session store  (module-global: lives for the session, NOT saved to the .blend)
 # ----------------------------------------------------------------------------

@@ -101,21 +101,31 @@ def shortcut_for_operator(idname):
     if idname in _SHORTCUT_CACHE:
         return _SHORTCUT_CACHE[idname]
     out = ""
-    try:
-        kc = bpy.context.window_manager.keyconfigs.user
-        for km in kc.keymaps:
-            for kmi in km.keymap_items:
-                if kmi.idname != idname or not kmi.active:
-                    continue
-                if kmi.type in _SKIP_TYPES or kmi.type in _MOUSE_TYPES:
-                    continue               # prefer a real keyboard binding
-                out = _kmi_label(kmi)
-                break
-            if out:
-                break
+    kcs = getattr(bpy.context.window_manager, "keyconfigs", None)
+
+    def _usable(kmi):
+        return (kmi is not None and getattr(kmi, "active", True)
+                and kmi.type not in _SKIP_TYPES and kmi.type not in _MOUSE_TYPES)
+
+    try:                                   # official lookup, honours user remaps
+        km, kmi = kcs.find_item_from_operator(idname=idname)
+        if _usable(kmi):
+            out = _kmi_label(kmi)
     except Exception:
-        out = ""
-    _SHORTCUT_CACHE[idname] = out
+        pass
+    if not out:                            # manual sweep as a backstop
+        try:
+            for km in kcs.user.keymaps:
+                for kmi in km.keymap_items:
+                    if kmi.idname == idname and _usable(kmi):
+                        out = _kmi_label(kmi)
+                        break
+                if out:
+                    break
+        except Exception:
+            out = ""
+    if out:
+        _SHORTCUT_CACHE[idname] = out      # only cache hits: keymaps load late
     return out
 
 

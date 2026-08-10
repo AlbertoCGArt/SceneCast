@@ -68,11 +68,24 @@ class SCENECAST_OT_toggle(Operator):
                 pass
             if not bpy.app.timers.is_registered(_watchdog_tick):
                 bpy.app.timers.register(_watchdog_tick, first_interval=WATCHDOG_DT)
+            # Primary start: this runs from the panel button, so the context
+            # has a real window and the modal handler attaches cleanly. The
+            # watchdog below is only the re-arm path if it later gets dropped.
+            try:
+                bpy.ops.scenecast.keylogger('INVOKE_DEFAULT')
+            except Exception as e:
+                print("[SceneCast] keylogger start failed:", e)
             if not bpy.app.timers.is_registered(_keylogger_watchdog):
-                bpy.app.timers.register(_keylogger_watchdog, first_interval=0.01)
+                bpy.app.timers.register(_keylogger_watchdog, first_interval=0.5)
             self.report({'INFO'}, "Recording started")
         else:
-            self.report({'INFO'}, "Recording stopped (%d steps)" % len(SESSION.steps))
+            n_keyed = sum(1 for s in SESSION.steps if s.get("keys"))
+            print("[SceneCast] session: %d steps, %d keystrokes captured, "
+                  "%d steps carry keys, logger attached=%s"
+                  % (len(SESSION.steps), SESSION.keys_captured_total,
+                     n_keyed, SESSION.keylogger_running))
+            self.report({'INFO'}, "Recording stopped (%d steps, %d keys)"
+                        % (len(SESSION.steps), SESSION.keys_captured_total))
         _tag_redraw()
         return {'FINISHED'}
 

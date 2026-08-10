@@ -41,6 +41,7 @@ class SCENECAST_PT_panel(Panel):
         sub.prop(sc, "scenecast_collection_name", text="", icon='OUTLINER_COLLECTION')
 
         layout.prop(sc, "scenecast_capture_context")
+        layout.prop(sc, "scenecast_capture_view")
         krow = layout.row(align=True)
         krow.prop(sc, "scenecast_show_keys")
         krow.prop(sc, "scenecast_keys_mouse")
