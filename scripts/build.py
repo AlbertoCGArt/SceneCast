@@ -37,6 +37,39 @@ def _source_files():
             yield fn
 
 
+# Both builds share one source tree, so a pro build was identified in
+# Blender's extension list as plain "SceneCast" at the same version -- a
+# customer had no way to confirm they had installed what they paid for, and
+# neither did support. The id deliberately stays "scenecast": Blender keys
+# extensions on it, and pro is meant to replace free rather than sit
+# alongside it.
+_PRO_EDITS = {
+    "blender_manifest.toml": (
+        ('name = "SceneCast"', 'name = "SceneCast Pro"'),
+        ('tagline = "Record your modeling session and replay it as a tutorial '
+         'or timelapse"',
+         'tagline = "Record your modeling session with notes, chapters, '
+         'annotated export and saved sessions"'),
+    ),
+    "__init__.py": (
+        ('"name": "SceneCast",', '"name": "SceneCast Pro",'),
+    ),
+}
+
+
+def _pro_text(fn, raw):
+    """Apply the pro branding edits, insisting every one of them lands."""
+    text = raw.decode("utf-8")
+    for old, new in _PRO_EDITS.get(fn, ()):
+        if old not in text:
+            raise SystemExit(
+                "build --pro: %s no longer contains %r, so the pro build "
+                "would ship branded as the free one. Update _PRO_EDITS."
+                % (fn, old[:60]))
+        text = text.replace(old, new)
+    return text.encode("utf-8")
+
+
 def build_zip(out, prefix, pro):
     """Write the add-on into `out`, each entry named `prefix + filename`.
 
@@ -46,7 +79,12 @@ def build_zip(out, prefix, pro):
     """
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
         for fn in _source_files():
-            z.write(os.path.join(PKG, fn), prefix + fn)
+            src = os.path.join(PKG, fn)
+            if pro and fn in _PRO_EDITS:
+                with open(src, "rb") as f:
+                    z.writestr(prefix + fn, _pro_text(fn, f.read()))
+            else:
+                z.write(src, prefix + fn)
         if pro:
             for fn in sorted(os.listdir(PRO_DIR)):
                 if fn.endswith(".py"):

@@ -7,6 +7,20 @@ from .state import SESSION, BUILD
 from .viewnav import _any_nonobject_mode
 from .overlay import _collapse, keys_for_step
 
+
+def _edition_line():
+    """Which build this is, so a paid install is identifiable in place.
+
+    Imported lazily: HAS_PRO lives on the package that imports this module,
+    so it cannot be read at import time.
+    """
+    try:
+        from . import HAS_PRO
+        edition = "Pro" if HAS_PRO else "Free"
+    except Exception:
+        edition = "Free"
+    return "SceneCast %s  -  build %s" % (edition, BUILD)
+
 # ----------------------------------------------------------------------------
 class SCENECAST_PT_panel(Panel):
     bl_label = "SceneCast"
@@ -51,7 +65,7 @@ class SCENECAST_PT_panel(Panel):
             layout.separator()
             layout.label(text="Nothing recorded yet.")
             layout.operator("scenecast.diagnose", icon='CONSOLE')
-            layout.label(text="build %s" % BUILD)
+            layout.label(text=_edition_line())
             return
 
         layout.separator()
@@ -127,5 +141,5 @@ class SCENECAST_PT_panel(Panel):
         drow = layout.row(align=True)
         drow.operator("scenecast.clear", icon='TRASH')
         drow.operator("scenecast.diagnose", text="", icon='CONSOLE')
-        layout.label(text="build %s" % BUILD)
+        layout.label(text=_edition_line())
 
