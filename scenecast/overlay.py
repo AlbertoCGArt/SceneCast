@@ -6,6 +6,7 @@ import blf
 from bpy.types import Operator
 
 from .state import SESSION, KEY_FADE, KEY_MAX_SHOWN, KEY_LOOKBACK
+from . import layout
 from .viewnav import _tag_redraw
 
 _REPEAT_WINDOW = 1.2       # seconds within which a repeated key collapses to xN
@@ -376,10 +377,11 @@ def _draw_keys_overlay():
         fid = 0
         sep = "    "
         try:
-            size = {'SMALL': 14, 'MEDIUM': 18, 'LARGE': 24}[
-                bpy.context.scene.scenecast_keys_size]
+            scale = layout.scale_for(bpy.context.scene.scenecast_keys_size)
         except Exception:
-            size = 14
+            scale = 1.0
+        h = float(region.height)
+        y, size = layout.band_px("keys", h, scale)
         _blf_size(fid, size)
         blf.enable(fid, blf.SHADOW)
         blf.shadow(fid, 5, 0.0, 0.0, 0.0, 0.9)
@@ -388,7 +390,6 @@ def _draw_keys_overlay():
         widths = [blf.dimensions(fid, t + sep)[0] for t, _ in chunks]
         total = sum(widths)
         x = max(20.0, (region.width - total) / 2.0)
-        y = 48.0
         for (t, alpha), w in zip(chunks, widths):
             blf.position(fid, x, y, 0)
             blf.color(fid, 0.92, 0.92, 0.92, alpha * 0.9)
@@ -396,9 +397,10 @@ def _draw_keys_overlay():
             x += w
 
         if op_label:
-            _blf_size(fid, max(11, size - 4))
+            oy, osize = layout.band_px("op", h, scale)
+            _blf_size(fid, osize)
             w = blf.dimensions(fid, op_label)[0]
-            blf.position(fid, max(20.0, (region.width - w) / 2.0), y - 22.0, 0)
+            blf.position(fid, max(20.0, (region.width - w) / 2.0), oy, 0)
             blf.color(fid, 0.65, 0.82, 1.0, 0.85)
             blf.draw(fid, op_label)
 

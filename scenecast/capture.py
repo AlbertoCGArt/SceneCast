@@ -280,6 +280,13 @@ def _capture_step():
         step["rot"] = rv3d.view_rotation.copy()
         step["dist"] = rv3d.view_distance
         step["loc"] = rv3d.view_location.copy()
+        try:
+            # World -> clip space for this step's view. Lets anything that
+            # renders outside a live viewport -- the video export -- work out
+            # where a point in the scene appeared on screen at this step.
+            step["persp_mat"] = rv3d.perspective_matrix.copy()
+        except Exception:
+            pass
 
     _capture_context(step)
 
