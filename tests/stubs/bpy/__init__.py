@@ -55,11 +55,50 @@ class _WindowManager:
         self.windows = []
 
 
+class _Cursor:
+    def __init__(self):
+        self.location = _Co()
+        self.rotation_euler = _Co()
+
+
+class _Co:
+    """Something with .copy(), which is all the capture path asks of it."""
+    def copy(self):
+        return self
+
+
+class _ToolSettings:
+    transform_pivot_point = 'MEDIAN_POINT'
+    mesh_select_mode = (True, False, False)
+
+
+class _OrientationSlot:
+    type = 'GLOBAL'
+
+
+class _ViewLayer:
+    objects = ()
+
+
+class _Scene(dict):
+    """Doubles as the ID-property mapping, so scene["key"] = v works."""
+    def __init__(self):
+        super().__init__()
+        self.cursor = _Cursor()
+        self.tool_settings = _ToolSettings()
+        self.transform_orientation_slots = [_OrientationSlot()]
+        self.scenecast_follow_tip = False
+        self.scenecast_capture_context = True
+        self.scenecast_capture_view = True
+
+
 class _Context:
     def __init__(self):
         self.window_manager = _WindowManager()
         self.window = None
-        self.scene = None
+        self.scene = _Scene()
+        self.view_layer = _ViewLayer()
+        self.active_object = None
         self.region = None
 
 

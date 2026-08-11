@@ -247,14 +247,8 @@ def _context_equal(a, b):
     return True
 
 
-def _capture_step():
-    objects = _visible_mesh_objects()
-    if not objects:
-        return
-
-    _isolate_objects(objects)
-
-    rv3d = _get_view3d_rv3d()
+def _new_step(rv3d):
+    """The non-geometry half of a step: when, what ran, and where we're looking."""
     op_name = ""
     op_id = ""
     try:
@@ -287,6 +281,47 @@ def _capture_step():
             step["persp_mat"] = rv3d.perspective_matrix.copy()
         except Exception:
             pass
+    return step
+
+
+def _capture_view_step():
+    """Record a camera move without touching a single mesh.
+
+    Orbiting fires no depsgraph update, so these steps come off a clock -- and
+    taking a full snapshot on that clock is what makes navigation stutter,
+    because a snapshot rebuilds every object's edge and face lists in Python.
+    A camera move changes no geometry, so the previous step's snapshots are
+    shared by reference. Replay only ever reads them.
+    """
+    if not SESSION.steps or SESSION.pending:
+        return                           # a real edit is settling: let it win
+    prev = SESSION.steps[-1]
+    step = _new_step(_get_view3d_rv3d())
+    step["objs"] = prev["objs"]          # shared, not copied
+    step["geo_new"] = False
+    _capture_context(step)
+    SESSION.steps.append(step)
+    step["keys"] = list(SESSION.pending_keys)
+    SESSION.pending_keys.clear()
+
+    try:
+        sc = bpy.context.scene
+        if sc.scenecast_follow_tip:
+            sc["scenecast_playhead"] = len(SESSION.steps) - 1
+    except Exception:
+        pass
+    _tag_redraw()
+
+
+def _capture_step():
+    objects = _visible_mesh_objects()
+    if not objects:
+        return
+
+    _isolate_objects(objects)
+
+    rv3d = _get_view3d_rv3d()
+    step = _new_step(rv3d)
 
     _capture_context(step)
 
@@ -396,7 +431,7 @@ def _watchdog_tick():
             sc = bpy.context.scene
             if getattr(sc, "scenecast_capture_view", False) \
                     and _view_moved_since_last_step():
-                _capture_step()
+                _capture_view_step()
         except Exception as e:
             print("[SceneCast] view watchdog error:", e)
     return WATCHDOG_DT
