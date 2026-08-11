@@ -73,7 +73,7 @@ def _export_frame_handler(scene, depsgraph=None):
                     SESSION.steps[idx], idx)
             except Exception as e:
                 print("[SceneCast] export stamp error:", e)
-    if _EXPORT["smooth"] and not _EXPORT["editmode"] and idx < n - 1:
+    if _EXPORT["smooth"] and idx < n - 1:
         try:
             _interp_geometry(SESSION.steps[idx], SESSION.steps[idx + 1], frac)
         except Exception as e:

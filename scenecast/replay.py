@@ -34,14 +34,34 @@ def _lerp_matrix(m0, m1, f):
     return Matrix.LocRotScale(l0.lerp(l1, f), r0.slerp(r1, f), s0.lerp(s1, f))
 
 
+def _interp_edit_cage(obj, blended):
+    """Blend an object that is currently in Edit Mode.
+
+    Writing to mesh.vertices does nothing visible while Edit Mode is active --
+    the cage is drawn from the bmesh -- so modelling work snapped from step to
+    step while the camera glided. The bmesh has to be moved instead.
+    """
+    try:
+        bm = bmesh.from_edit_mesh(obj.data)
+        if len(bm.verts) * 3 != len(blended):
+            return
+        bm.verts.ensure_lookup_table()
+        for i, v in enumerate(bm.verts):
+            j = i * 3
+            v.co = Vector((blended[j], blended[j + 1], blended[j + 2]))
+        # coordinates only: no topology change, so skip the destructive path
+        bmesh.update_edit_mesh(obj.data, loop_triangles=False, destructive=False)
+    except Exception:
+        pass
+
+
 def _interp_geometry(step_a, step_b, frac):
     """Glide same-topology meshes and transforms from step_a toward step_b.
 
     Called every playback/export frame between two integer steps so a moved
     face or grabbed object slides instead of snapping. Only objects present in
-    BOTH steps with a matching vertex count are blended; topology changes were
-    already snapped by the base step apply, and Edit-Mode objects are left to
-    their bmesh cage.
+    BOTH steps with a matching vertex count are blended: a step that adds or
+    removes geometry genuinely is a jump, and no lerp turns 8 vertices into 12.
 
     Uses a LINEAR (constant-velocity) blend on purpose: it reads like the real
     drag the artist did, not an eased keyframe animation.
@@ -52,15 +72,21 @@ def _interp_geometry(step_a, step_b, frac):
         if b is None:
             continue
         obj = bpy.data.objects.get(name)
-        if obj is None or obj.type != 'MESH' or obj.mode == 'EDIT':
+        if obj is None or obj.type != 'MESH':
             continue
+        editing = obj.mode == 'EDIT'
         mesh = obj.data
         ca, cb = a.get("coords"), b.get("coords")
         if (a["vcount"] == b["vcount"] and ca is not None and cb is not None
-                and len(ca) == len(cb) and len(mesh.vertices) == a["vcount"]):
+                and len(ca) == len(cb)
+                and (editing or len(mesh.vertices) == a["vcount"])):
             try:
-                mesh.vertices.foreach_set("co", _lerp_coords(ca, cb, f))
-                mesh.update()
+                blended = _lerp_coords(ca, cb, f)
+                if editing:
+                    _interp_edit_cage(obj, blended)
+                else:
+                    mesh.vertices.foreach_set("co", blended)
+                    mesh.update()
             except Exception:
                 pass
         try:
