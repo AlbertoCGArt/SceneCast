@@ -34,23 +34,55 @@ def _lerp_matrix(m0, m1, f):
     return Matrix.LocRotScale(l0.lerp(l1, f), r0.slerp(r1, f), s0.lerp(s1, f))
 
 
-def _interp_edit_cage(obj, blended):
+def _moved_verts(a, b):
+    """Indices of the vertices that actually differ between two snapshots.
+
+    Every frame of a step's hold asks about the same pair, and a typical edit
+    moves a handful of vertices out of tens of thousands. Writing all of them
+    back each frame is what made export crawl, so the answer is found once
+    with numpy and cached on the snapshot.
+    """
+    cached = a.get("_moved")
+    if cached is not None and cached[0] is b:
+        return cached[1]
+    ca, cb = a.get("coords"), b.get("coords")
+    if ca is None or cb is None or len(ca) != len(cb):
+        idx = np.empty(0, dtype=np.intp)
+    elif np.array_equal(ca, cb):
+        idx = np.empty(0, dtype=np.intp)   # nothing moved: skip the write
+    else:
+        idx = np.nonzero((ca != cb).reshape(-1, 3).any(axis=1))[0]
+    a["_moved"] = (b, idx)
+    return idx
+
+
+def _interp_edit_cage(obj, ca, cb, f, moved):
     """Blend an object that is currently in Edit Mode.
 
     Writing to mesh.vertices does nothing visible while Edit Mode is active --
     the cage is drawn from the bmesh -- so modelling work snapped from step to
-    step while the camera glided. The bmesh has to be moved instead.
+    step while the camera glided. The bmesh has to be moved instead, and only
+    the vertices that actually changed: bmesh has no foreach_set, so each one
+    costs a Python round trip.
     """
     try:
         bm = bmesh.from_edit_mesh(obj.data)
-        if len(bm.verts) * 3 != len(blended):
+        if len(bm.verts) * 3 != len(ca):
             return
         bm.verts.ensure_lookup_table()
-        for i, v in enumerate(bm.verts):
+        verts = bm.verts
+        for i in moved:
+            i = int(i)
             j = i * 3
-            v.co = Vector((blended[j], blended[j + 1], blended[j + 2]))
-        # coordinates only: no topology change, so skip the destructive path
-        bmesh.update_edit_mesh(obj.data, loop_triangles=False, destructive=False)
+            verts[i].co = Vector((
+                ca[j] + (cb[j] - ca[j]) * f,
+                ca[j + 1] + (cb[j + 1] - ca[j + 1]) * f,
+                ca[j + 2] + (cb[j + 2] - ca[j + 2]) * f))
+        # Moving vertices invalidates the normals, and stale ones shade the
+        # surface black in solid view. Topology is untouched, so the
+        # destructive path stays off, but the tessellation has to be rebuilt.
+        bm.normal_update()
+        bmesh.update_edit_mesh(obj.data, loop_triangles=True, destructive=False)
     except Exception:
         pass
 
@@ -80,15 +112,16 @@ def _interp_geometry(step_a, step_b, frac):
         if (a["vcount"] == b["vcount"] and ca is not None and cb is not None
                 and len(ca) == len(cb)
                 and (editing or len(mesh.vertices) == a["vcount"])):
-            try:
-                blended = _lerp_coords(ca, cb, f)
-                if editing:
-                    _interp_edit_cage(obj, blended)
-                else:
-                    mesh.vertices.foreach_set("co", blended)
-                    mesh.update()
-            except Exception:
-                pass
+            moved = _moved_verts(a, b)
+            if len(moved):                 # identical geometry: nothing to draw
+                try:
+                    if editing:
+                        _interp_edit_cage(obj, ca, cb, f, moved)
+                    else:
+                        mesh.vertices.foreach_set("co", _lerp_coords(ca, cb, f))
+                        mesh.update()
+                except Exception:
+                    pass
         try:
             obj.matrix_world = _lerp_matrix(a["mat"], b["mat"], f)
         except Exception:
