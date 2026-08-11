@@ -6,7 +6,7 @@ import bpy
 from .state import SESSION, _EXPORT, KEY_MAX_SHOWN
 from .viewnav import _restore_view, _blend_view
 from .replay import _apply_step_geometry, _interp_geometry
-from .overlay import _collapse, keys_for_step
+from .overlay import _collapse, keys_for_step, op_label_for_step
 
 # Render-stamp settings we take over during export and put back afterwards.
 # The viewport keystroke overlay is a Python draw handler, and render.opengl
@@ -24,13 +24,18 @@ _STAMP_ATTRS = (
 
 def _stamp_text_for(step, idx=None):
     """One line of burn-in text: the keys for this step, then the operator."""
-    raw = keys_for_step(idx) if idx is not None else step.get("keys", [])
-    keys = _collapse(raw)[-KEY_MAX_SHOWN:]
-    note = "   ".join(keys)
-    op = step.get("op", "")
-    if note and op and op != "(edit)":
+    if idx is not None:
+        raw = keys_for_step(idx)
+        op = op_label_for_step(idx)
+    else:
+        raw = step.get("keys", [])
+        op = step.get("op", "")
+        if op == "(edit)":
+            op = ""
+    note = "   ".join(_collapse(raw)[-KEY_MAX_SHOWN:])
+    if note and op:
         return "%s     %s" % (note, op)
-    return note or (op if op != "(edit)" else "")
+    return note or op
 
 
 def setup_stamp(rnd, size):

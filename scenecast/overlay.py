@@ -64,6 +64,27 @@ def keys_for_step(idx):
     return [txt for txt, ts in log if t_start < ts <= t_end]
 
 
+def op_label_for_step(idx):
+    """Operator label for a step, suppressed once it has gone stale.
+
+    wm.operators keeps reporting the last operator that ran, so a camera step
+    captured after an extrude would otherwise caption itself "Extrude Region
+    and Move" -- naming an edit that isn't happening in that frame.
+    """
+    steps = SESSION.steps
+    if not (0 <= idx < len(steps)):
+        return ""
+    step = steps[idx]
+    op = step.get("op", "")
+    if not op or op == "(edit)":
+        return ""                        # placeholder, not a real operator
+    op_id = step.get("op_id", "")
+    if op_id and idx > 0 and not step.get("geo_new"):
+        if op_id == steps[idx - 1].get("op_id", ""):
+            return ""                    # same operator, no new geometry
+    return op
+
+
 def _collapse(keys):
     """['G','X','X','X','5'] -> ['G', 'X x3', '5'] for compact display."""
     out = []
@@ -336,7 +357,7 @@ def _overlay_chunks():
             step = SESSION.steps[idx]
             for txt in _collapse(keys_for_step(idx))[-KEY_MAX_SHOWN:]:
                 chunks.append((txt, 1.0))
-            op_label = step.get("op", "")
+            op_label = op_label_for_step(idx)
     return chunks, op_label
 
 
