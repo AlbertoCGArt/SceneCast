@@ -4,7 +4,7 @@ import time
 
 # Bumped on every build that changes capture/replay behaviour, so a bug report
 # can be tied to the code that produced it rather than to "the latest zip".
-BUILD = "1.0.0+8"
+BUILD = "1.0.0+9"
 
 
 # -- Config -------------------------------------------------------------------

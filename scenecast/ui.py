@@ -112,6 +112,9 @@ class SCENECAST_PT_panel(Panel):
         ebox.prop(sc, "scenecast_export_format", text="")
         ebox.prop(sc, "scenecast_export_path", text="")
         ebox.prop(sc, "scenecast_export_fps")
+        krow2 = ebox.row()
+        krow2.enabled = sc.scenecast_show_keys
+        krow2.prop(sc, "scenecast_keys_placement", text="Keys")
         ebox.label(text="Speed: %.2fs / step  (matches the Hold above)"
                         % sc.scenecast_step_hold, icon='TIME')
         ebox.prop(sc, "scenecast_export_follow_view")

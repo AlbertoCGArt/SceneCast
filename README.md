@@ -95,9 +95,12 @@ scenecast/
   handler. Steps are labelled from the operator's own keymap shortcut instead,
   which is deterministic. Catching those keystrokes for real needs an
   aggressive event grab of the kind the Screencast Keys add-on implements.
-- Keys reach exported video through Blender's render stamp, not the viewport
-  overlay: `render.opengl` does not run Python draw handlers. The stamp's
-  position is fixed by Blender (top-left) and is not configurable.
+- Keys cannot ride the viewport overlay into exported video, because
+  `render.opengl` does not run Python draw handlers. Two routes exist, chosen
+  with **Keys in Video**: *Bottom Centre* renders the frames first and
+  composites the text over them through the sequencer (two passes, slower,
+  screencast placement), while *Top Left* uses Blender's render stamp in a
+  single pass — the stamp's corner position is fixed by Blender.
 - Smooth Motion only blends objects whose topology is unchanged between two
   steps; a vert-count change snaps (you can't morph 8 verts into 12).
 - "Edit Mode in Export" is experimental; mode switching during render can

@@ -14,7 +14,7 @@ _PROP_NAMES = (
     "scenecast_show_keys", "scenecast_keys_mouse", "scenecast_keys_size",
     "scenecast_isolate", "scenecast_collection_name",
     "scenecast_export_format", "scenecast_export_path",
-    "scenecast_export_fps",
+    "scenecast_export_fps", "scenecast_keys_placement",
     "scenecast_export_follow_view", "scenecast_export_edit",
 )
 
@@ -82,6 +82,16 @@ def register_props():
         name="Output", subtype='FILE_PATH', default="//scenecast_session.mp4",
         description="MP4: file path.  PNG: folder for the frames")
     S.scenecast_export_fps = IntProperty(name="FPS", default=24, min=1, max=120)
+    S.scenecast_keys_placement = EnumProperty(
+        name="Keys in Video", default='BOTTOM',
+        items=[('BOTTOM', "Bottom Centre",
+                "Screencast placement. Renders frames first, then composites "
+                "the text over them through the sequencer (slower, two passes)"),
+               ('CORNER', "Top Left (fast)",
+                "Blender's render stamp burns the text in during the render. "
+                "One pass, but the corner position is fixed by Blender"),
+               ('NONE', "Off", "Don't put keystrokes in the exported video")],
+        description="Where keystrokes appear in exported video")
     S.scenecast_export_follow_view = BoolProperty(
         name="Use Recorded Views", default=False,
         description="Restore each step's viewport angle in the export")

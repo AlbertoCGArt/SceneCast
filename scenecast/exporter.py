@@ -80,6 +80,88 @@ def _export_frame_handler(scene, depsgraph=None):
             _restore_view(SESSION.steps[idx])
 
 
+def _seq_strips(se):
+    """Blender 5.0 renamed SequenceEditor.sequences to .strips."""
+    return getattr(se, "strips", None) or se.sequences
+
+
+def _set_any(obj, pairs):
+    """Set whichever of these attributes this Blender version actually has."""
+    for attr, val in pairs:
+        try:
+            setattr(obj, attr, val)
+        except Exception:
+            pass
+
+
+def apply_video_settings(rnd, fps):
+    if hasattr(rnd.image_settings, "media_type"):
+        rnd.image_settings.media_type = 'VIDEO'      # Blender 5.0+ gate
+    rnd.image_settings.file_format = 'FFMPEG'
+    rnd.ffmpeg.format = 'MPEG4'
+    rnd.ffmpeg.codec = 'H264'
+    rnd.ffmpeg.constant_rate_factor = 'MEDIUM'
+    rnd.ffmpeg.audio_codec = 'NONE'
+    rnd.fps = fps
+
+
+def composite_text_video(src_scene, png_dir, out_path, hold, fps, texts, font_size):
+    """Second pass: rebuild the rendered frames into a video with text burned in.
+
+    render.opengl will not run Python draw handlers, and Blender's render stamp
+    is locked to the top-left corner -- neither can put keystrokes where a
+    screencast wants them. Feeding the frames back through the sequencer as an
+    image strip with text strips over it gives full control of position, size
+    and shadow.
+    """
+    files = sorted(f for f in os.listdir(png_dir) if f.lower().endswith(".png"))
+    if not files:
+        raise RuntimeError("no frames were rendered")
+
+    scene = bpy.data.scenes.new("SceneCast Composite")
+    try:
+        r = scene.render
+        sr = src_scene.render
+        r.resolution_x = sr.resolution_x
+        r.resolution_y = sr.resolution_y
+        r.resolution_percentage = sr.resolution_percentage
+        scene.frame_start = 1
+        scene.frame_end = len(files)
+
+        se = scene.sequence_editor_create()
+        strips = _seq_strips(se)
+        img = strips.new_image(name="frames", channel=1, frame_start=1,
+                               filepath=os.path.join(png_dir, files[0]))
+        for fn in files[1:]:
+            img.elements.append(fn)
+
+        for i, txt in enumerate(texts):
+            if not txt:
+                continue
+            start = 1 + i * hold
+            if start > len(files):
+                break
+            end = min(start + hold, len(files) + 1)
+            t = strips.new_effect(name="key%04d" % i, type='TEXT', channel=2,
+                                  frame_start=start, frame_end=end)
+            t.text = txt
+            # anchor_* is 4.x+, align_* is the older spelling; set both.
+            _set_any(t, (("font_size", font_size), ("use_shadow", True),
+                         ("anchor_x", 'CENTER'), ("anchor_y", 'BOTTOM'),
+                         ("align_x", 'CENTER'), ("align_y", 'BOTTOM'),
+                         ("location", (0.5, 0.05))))
+
+        apply_video_settings(r, fps)
+        r.filepath = out_path
+        with bpy.context.temp_override(scene=scene):
+            bpy.ops.render.render(animation=True)
+    finally:
+        try:
+            bpy.data.scenes.remove(scene)
+        except Exception:
+            pass
+
+
 def _resolve_export_path(p, ext):
     ap = bpy.path.abspath(p) if p else ""
     if not ap:

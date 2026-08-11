@@ -14,7 +14,8 @@ from .overlay import keys_for_step
 from .replay import _apply_step_geometry, _play_tick
 from .exporter import (_export_frame_handler, _resolve_export_path,
                        _resolve_export_dir, _stash_render, _restore_render,
-                       setup_stamp)
+                       setup_stamp, apply_video_settings, composite_text_video,
+                       _stamp_text_for)
 
 # ----------------------------------------------------------------------------
 def _keylogger_watchdog():
@@ -276,32 +277,48 @@ class SCENECAST_OT_export(Operator):
             self.report({'WARNING'}, "No 3D viewport found")
             return {'CANCELLED'}
 
+        placement = getattr(sc, "scenecast_keys_placement", 'CORNER')
+        if not sc.scenecast_show_keys:
+            placement = 'NONE'
+        # Bottom-centre text can't come from the render itself, so the frames
+        # go to a scratch folder and a second pass composites over them.
+        two_pass = (fmt == 'MP4' and placement == 'BOTTOM')
+        tmp_dir = ""
+        if two_pass:
+            tmp_dir = os.path.join(bpy.app.tempdir, "scenecast_frames")
+            try:
+                if os.path.isdir(tmp_dir):
+                    for f in os.listdir(tmp_dir):
+                        os.remove(os.path.join(tmp_dir, f))
+                else:
+                    os.makedirs(tmp_dir, exist_ok=True)
+            except Exception as e:
+                print("[SceneCast] scratch folder unusable, "
+                      "falling back to corner stamp:", e)
+                two_pass = False
+                placement = 'CORNER'
+
         if fmt == 'MP4':
             out = _resolve_export_path(sc.scenecast_export_path, ".mp4")
         else:
             out = os.path.join(_resolve_export_dir(sc.scenecast_export_path), "frame_")
+        render_to = os.path.join(tmp_dir, "f_") if two_pass else out
 
         stash = _stash_render(sc, rnd)
         try:
             rnd.fps = sc.scenecast_export_fps
             img = rnd.image_settings
-            if fmt == 'MP4':
-                if hasattr(img, "media_type"):
-                    img.media_type = 'VIDEO'       # Blender 5.0+ gate
-                img.file_format = 'FFMPEG'
-                rnd.ffmpeg.format = 'MPEG4'
-                rnd.ffmpeg.codec = 'H264'
-                rnd.ffmpeg.constant_rate_factor = 'MEDIUM'
-                rnd.ffmpeg.audio_codec = 'NONE'
+            if fmt == 'MP4' and not two_pass:
+                apply_video_settings(rnd, sc.scenecast_export_fps)
             else:
                 if hasattr(img, "media_type"):
                     img.media_type = 'IMAGE'
                 img.file_format = 'PNG'
-            rnd.filepath = out
+            rnd.filepath = render_to
             sc.frame_start = 1
             sc.frame_end = n * hold
 
-            stamp = bool(sc.scenecast_show_keys)
+            stamp = (placement == 'CORNER')
             if stamp:
                 setup_stamp(rnd, {'SMALL': 14, 'MEDIUM': 18,
                                   'LARGE': 24}.get(sc.scenecast_keys_size, 14))
@@ -319,6 +336,14 @@ class SCENECAST_OT_export(Operator):
             SESSION.export_active = True
             with context.temp_override(window=win, area=area, region=region):
                 bpy.ops.render.opengl(animation=True, view_context=True)
+            SESSION.export_active = False
+
+            if two_pass:
+                texts = [_stamp_text_for(SESSION.steps[i], i) for i in range(n)]
+                size = {'SMALL': 32, 'MEDIUM': 48,
+                        'LARGE': 64}.get(sc.scenecast_keys_size, 32)
+                composite_text_video(sc, tmp_dir, out, hold,
+                                     sc.scenecast_export_fps, texts, size)
 
             self.report({'INFO'}, "Exported to %s" % out)
             res = {'FINISHED'}
@@ -331,6 +356,13 @@ class SCENECAST_OT_export(Operator):
                 bpy.app.handlers.frame_change_pre.remove(_export_frame_handler)
             _restore_render(sc, rnd, stash)
             _exit_all_edit()
+            if tmp_dir and os.path.isdir(tmp_dir):
+                try:                      # scratch frames, not the deliverable
+                    for f in os.listdir(tmp_dir):
+                        os.remove(os.path.join(tmp_dir, f))
+                    os.rmdir(tmp_dir)
+                except Exception:
+                    pass
         return res
 
 
