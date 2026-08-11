@@ -83,14 +83,21 @@ scenecast/
   major milestone — see ROADMAP).
 - Deleted objects can't be resurrected on rewind (they hide instead).
 - Objects are tracked by name; renaming mid-session breaks the thread.
-- Menu popups can't be captured (no API); the keystroke + operator-label
-  overlay conveys the trigger and result instead.
+- Menu popups cannot be reproduced. A Blender menu is a transient UI popup
+  with no data trace: nothing reports that one is open or what it contains,
+  it is not an entry in `wm.operators`, and popups are not drawn into an
+  OpenGL render. This is an architectural ceiling, not a gap to close. What
+  is shown instead is the shortcut that opened the menu (`Shift+A`) and the
+  operator that was chosen from it ("Add Cube"), which conveys the action
+  without the chrome.
 - Keys pressed *inside* a running modal operator (the `Z` `5` of a `G` `Z` `5`
-  move) are consumed by that operator and never reach the logger; the trigger
-  key plus the operator label are what get recorded.
-- The keystroke overlay is a viewport draw handler, and `render.opengl` does
-  not run those — so keys are visible on screen but do **not** appear in
-  exported video. A composited text pass is on the roadmap.
+  move) are consumed by that operator and never reach a `PASS_THROUGH` modal
+  handler. Steps are labelled from the operator's own keymap shortcut instead,
+  which is deterministic. Catching those keystrokes for real needs an
+  aggressive event grab of the kind the Screencast Keys add-on implements.
+- Keys reach exported video through Blender's render stamp, not the viewport
+  overlay: `render.opengl` does not run Python draw handlers. The stamp's
+  position is fixed by Blender (top-left) and is not configurable.
 - Smooth Motion only blends objects whose topology is unchanged between two
   steps; a vert-count change snaps (you can't morph 8 verts into 12).
 - "Edit Mode in Export" is experimental; mode switching during render can

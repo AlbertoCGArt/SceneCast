@@ -37,13 +37,27 @@ def keys_for_step(idx):
     steps = SESSION.steps
     if not (0 <= idx < len(steps)):
         return []
-    own = steps[idx].get("keys")
+    step = steps[idx]
+
+    # An operator that ran on this step is the most reliable signal there is.
+    # Its shortcut is deterministic, while logged keys get mis-credited: the
+    # camera watchdog fires on a clock, so a step captured mid-extrude lands
+    # between the E press and the geometry it produced, and claims the E.
+    op_id = step.get("op_id", "")
+    if op_id:
+        prev_op = steps[idx - 1].get("op_id", "") if idx > 0 else ""
+        if step.get("geo_new") or op_id != prev_op:
+            combo = shortcut_for_operator(op_id)
+            if combo:
+                return [combo]
+
+    own = step.get("keys")
     if own:
         return own
     log = SESSION.key_log
     if not log:
         return []
-    t_end = steps[idx].get("t")
+    t_end = step.get("t")
     if t_end is None:
         return []
     t_start = steps[idx - 1].get("t", t_end) if idx > 0 else t_end - KEY_LOOKBACK
@@ -161,7 +175,10 @@ def shortcut_for_operator(idname):
     if idname in _SHORTCUT_CACHE:
         return _SHORTCUT_CACHE[idname]
     out = ""
-    kcs = getattr(bpy.context.window_manager, "keyconfigs", None)
+    # bpy.context is None in restricted contexts (load handlers, background
+    # runs), so reach for the keyconfigs defensively rather than assuming.
+    kcs = getattr(getattr(bpy.context, "window_manager", None),
+                  "keyconfigs", None)
 
     def _usable(kmi):
         return (kmi is not None and getattr(kmi, "active", True)

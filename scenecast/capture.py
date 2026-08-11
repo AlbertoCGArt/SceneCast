@@ -297,11 +297,13 @@ def _capture_step():
     if not step["objs"]:
         return
 
+    geo_new = True
     if SESSION.steps:
         prev = SESSION.steps[-1]
         geo_same = (set(prev["objs"].keys()) == set(step["objs"].keys())
                     and all(_objects_equal(prev["objs"][k], step["objs"][k])
                             for k in step["objs"]))
+        geo_new = not geo_same
         if geo_same:
             sc = bpy.context.scene
             # A pure camera move is a real step for a tutorial, so it survives
@@ -316,6 +318,7 @@ def _capture_step():
             # else: selection / cursor / pivot / mode / view changed -> record it
 
     prev_op_id = SESSION.steps[-1].get("op_id", "") if SESSION.steps else ""
+    step["geo_new"] = geo_new            # did this step actually change the mesh
 
     SESSION.steps.append(step)
     SESSION.all_names.update(step["objs"].keys())
