@@ -57,8 +57,22 @@ def _remove_handler():
 # the same public surface as any add-on code: state.SESSION, capture, replay.
 try:
     from . import pro as _pro
-except ImportError:
+except ImportError as _e:
+    # No pro package bundled: this is the free build, and that is normal.
+    # A pro package that is present but broken must NOT look the same --
+    # silently falling back would ship a paid build with none of its features
+    # and no explanation, so say so.
+    import os as _os
     _pro = None
+    if _os.path.isdir(_os.path.join(_os.path.dirname(__file__), "pro")):
+        import traceback as _tb
+        print("[SceneCast] pro package present but failed to import: %s" % _e)
+        _tb.print_exc()
+except Exception as _e:                # anything else is a real bug, be loud
+    import traceback as _tb
+    _pro = None
+    print("[SceneCast] pro package failed to load: %s" % _e)
+    _tb.print_exc()
 
 HAS_PRO = _pro is not None
 
