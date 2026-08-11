@@ -37,23 +37,23 @@ def _lerp_matrix(m0, m1, f):
 def _moved_verts(a, b):
     """Indices of the vertices that actually differ between two snapshots.
 
-    Every frame of a step's hold asks about the same pair, and a typical edit
-    moves a handful of vertices out of tens of thousands. Writing all of them
-    back each frame is what made export crawl, so the answer is found once
-    with numpy and cached on the snapshot.
+    A typical edit moves a handful of vertices out of tens of thousands, and
+    bmesh has no foreach_set, so writing all of them back per frame is what
+    made export crawl. Finding the short list is pure numpy -- a quarter of a
+    millisecond on a 23k mesh -- so it is recomputed rather than cached.
+
+    Deliberately NOT memoised onto the snapshot: a cache entry holding a
+    reference to the other snapshot turns SESSION.steps into a linked chain,
+    and anything that walks the session for serialisation then drags in every
+    later step from each step. That measured 34x bloat at 200 steps and hit
+    Python's recursion limit at 500.
     """
-    cached = a.get("_moved")
-    if cached is not None and cached[0] is b:
-        return cached[1]
     ca, cb = a.get("coords"), b.get("coords")
     if ca is None or cb is None or len(ca) != len(cb):
-        idx = np.empty(0, dtype=np.intp)
-    elif np.array_equal(ca, cb):
-        idx = np.empty(0, dtype=np.intp)   # nothing moved: skip the write
-    else:
-        idx = np.nonzero((ca != cb).reshape(-1, 3).any(axis=1))[0]
-    a["_moved"] = (b, idx)
-    return idx
+        return np.empty(0, dtype=np.intp)
+    if np.array_equal(ca, cb):
+        return np.empty(0, dtype=np.intp)   # nothing moved: skip the write
+    return np.nonzero((ca != cb).reshape(-1, 3).any(axis=1))[0]
 
 
 def _interp_edit_cage(obj, ca, cb, f, moved):

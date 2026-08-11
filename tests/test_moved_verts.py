@@ -47,14 +47,17 @@ def test_missing_coordinates_are_handled():
     assert len(_moved_verts(_snap([0, 0, 0]), {})) == 0
 
 
-def test_result_is_cached_for_the_same_pair():
+def test_the_answer_is_not_memoised_onto_the_snapshot():
+    # Caching this cheap numpy result onto the snapshot linked each step to
+    # the next, and anything walking the session to save it then pulled in
+    # every later step from each step.
     a = _snap([0, 0, 0, 1, 1, 1])
     b = _snap([0, 0, 0, 2, 1, 1])
-    first = _moved_verts(a, b)
-    assert _moved_verts(a, b) is first     # same object, not recomputed
+    _moved_verts(a, b)
+    assert set(a) == {"coords"} and set(b) == {"coords"}
 
 
-def test_cache_does_not_answer_for_a_different_successor():
+def test_each_successor_is_answered_independently():
     a = _snap([0, 0, 0, 1, 1, 1])
     b = _snap([0, 0, 0, 2, 1, 1])
     c = _snap([0, 0, 0, 1, 1, 1])          # identical to a
