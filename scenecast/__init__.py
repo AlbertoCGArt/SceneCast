@@ -19,7 +19,8 @@ from .replay import _play_tick
 from .exporter import _export_frame_handler
 from .overlay import SCENECAST_OT_keylogger, _add_draw_handler, _remove_draw_handler
 from .ops import (SCENECAST_OT_toggle, SCENECAST_OT_clear, SCENECAST_OT_step,
-                  SCENECAST_OT_play, SCENECAST_OT_export, _keylogger_watchdog)
+                  SCENECAST_OT_play, SCENECAST_OT_export, SCENECAST_OT_diagnose,
+                  _keylogger_watchdog)
 from .ui import SCENECAST_PT_panel
 from .props import register_props, unregister_props
 
@@ -29,6 +30,7 @@ _classes = (
     SCENECAST_OT_step,
     SCENECAST_OT_play,
     SCENECAST_OT_export,
+    SCENECAST_OT_diagnose,
     SCENECAST_OT_keylogger,
     SCENECAST_PT_panel,
 )

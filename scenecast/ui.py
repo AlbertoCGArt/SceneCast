@@ -3,7 +3,7 @@
 import bpy
 from bpy.types import Panel
 
-from .state import SESSION
+from .state import SESSION, BUILD
 from .viewnav import _any_nonobject_mode
 from .overlay import _collapse, keys_for_step
 
@@ -50,6 +50,8 @@ class SCENECAST_PT_panel(Panel):
         if n == 0:
             layout.separator()
             layout.label(text="Nothing recorded yet.")
+            layout.operator("scenecast.diagnose", icon='CONSOLE')
+            layout.label(text="build %s" % BUILD)
             return
 
         layout.separator()
@@ -119,5 +121,8 @@ class SCENECAST_PT_panel(Panel):
         ebox.operator("scenecast.export", icon='RENDER_ANIMATION')
 
         layout.separator()
-        layout.operator("scenecast.clear", icon='TRASH')
+        drow = layout.row(align=True)
+        drow.operator("scenecast.clear", icon='TRASH')
+        drow.operator("scenecast.diagnose", text="", icon='CONSOLE')
+        layout.label(text="build %s" % BUILD)
 

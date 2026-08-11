@@ -2,6 +2,10 @@
 
 import time
 
+# Bumped on every build that changes capture/replay behaviour, so a bug report
+# can be tied to the code that produced it rather than to "the latest zip".
+BUILD = "1.0.0+7"
+
 
 # -- Config -------------------------------------------------------------------
 DEBOUNCE = 0.25            # seconds of "quiet" before a settled edit is snapshotted

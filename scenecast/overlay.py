@@ -92,6 +92,41 @@ _KEY_LABELS = {
 
 _SHORTCUT_CACHE = {}
 
+# Operators reached through a menu have no shortcut bound to them: Shift+A
+# opens the Add menu and X opens the delete menu -- neither is bound to
+# mesh.primitive_cube_add or mesh.delete, so the keymap lookup correctly finds
+# nothing. These are the menu entry points, which is what a viewer needs to
+# see. Prefix matches, longest first.
+_ADD_PREFIXES = (
+    "mesh.primitive_", "curve.primitive_", "surface.primitive_",
+    "object.add", "object.empty_add", "object.light_add", "object.camera_add",
+    "object.text_add", "object.metaball_add", "object.armature_add",
+    "object.speaker_add", "object.collection_instance_add",
+    "object.gpencil_add", "object.grease_pencil_add",
+)
+_MENU_SHORTCUTS = (
+    ("mesh.dissolve", "Ctrl+X"),
+    ("object.delete", "X"),
+    ("mesh.delete", "X"),
+    ("object.duplicate", "Shift+D"),
+    ("mesh.duplicate", "Shift+D"),
+    ("object.join", "Ctrl+J"),
+    ("object.parent_set", "Ctrl+P"),
+    ("mesh.separate", "P"),
+    ("mesh.merge", "M"),
+    ("mesh.knife", "K"),
+)
+
+
+def _menu_shortcut(idname):
+    """Entry-point shortcut for operators that are only reachable via a menu."""
+    if any(idname.startswith(p) for p in _ADD_PREFIXES):
+        return "Shift+A"
+    for prefix, combo in _MENU_SHORTCUTS:
+        if idname.startswith(prefix):
+            return combo
+    return ""
+
 
 def _kmi_label(kmi):
     mods = []
@@ -149,6 +184,8 @@ def shortcut_for_operator(idname):
                     break
         except Exception:
             out = ""
+    if not out:                            # menu-driven: nothing to look up
+        out = _menu_shortcut(idname)
     if out:
         _SHORTCUT_CACHE[idname] = out      # only cache hits: keymaps load late
     return out

@@ -6,7 +6,7 @@ import bpy
 from bpy.types import Operator
 from bpy.props import EnumProperty
 
-from .state import SESSION, _EXPORT, WATCHDOG_DT
+from .state import SESSION, _EXPORT, WATCHDOG_DT, BUILD
 from .viewnav import (_tag_redraw, _exit_all_edit, _any_nonobject_mode,
                       _find_view3d_context)
 from .capture import _capture_step, _watchdog_tick, _restore_collections
@@ -178,6 +178,73 @@ class SCENECAST_OT_play(Operator):
         if not bpy.app.timers.is_registered(_play_tick):
             bpy.app.timers.register(_play_tick, first_interval=0.0)
         _tag_redraw()
+        return {'FINISHED'}
+
+
+class SCENECAST_OT_diagnose(Operator):
+    bl_idname = "scenecast.diagnose"
+    bl_label = "Diagnostics"
+    bl_description = ("Write a report on key capture and step contents to the "
+                      "System Console and a 'SceneCast Report' text block")
+
+    def execute(self, context):
+        from . import overlay as _ov
+        sc = context.scene
+        L = []
+        L.append("SceneCast diagnostics  (build %s)" % BUILD)
+        L.append("-" * 58)
+        L.append("show_keys prop      : %s" % getattr(sc, "scenecast_show_keys", "?"))
+        L.append("draw handler        : %s" % ("installed" if _ov._draw_handle
+                                               else "MISSING"))
+        L.append("logger attached     : %s" % SESSION.keylogger_running)
+        L.append("recording           : %s" % SESSION.recording)
+        L.append("keystrokes captured : %d" % SESSION.keys_captured_total)
+        L.append("key_log entries     : %d" % len(SESSION.key_log))
+        L.append("live key_buffer     : %d" % len(SESSION.key_buffer))
+        L.append("pending (undrained) : %d" % len(SESSION.pending_keys))
+        L.append("steps               : %d" % len(SESSION.steps))
+        if SESSION.key_log:
+            sample = ", ".join(t for t, _ in SESSION.key_log[:12])
+            L.append("first logged keys   : %s" % sample)
+
+        n_own = sum(1 for s in SESSION.steps if s.get("keys"))
+        n_res = sum(1 for i in range(len(SESSION.steps)) if _ov.keys_for_step(i))
+        L.append("steps w/ own keys   : %d" % n_own)
+        L.append("steps w/ resolved   : %d" % n_res)
+        L.append("")
+        L.append("idx  op                        op_id                     keys")
+        for i, s in enumerate(SESSION.steps[:40]):
+            L.append("%-4d %-25.25s %-25.25s %s"
+                     % (i, s.get("op", ""), s.get("op_id", ""),
+                        ",".join(_ov.keys_for_step(i)) or "-"))
+        if len(SESSION.steps) > 40:
+            L.append("... %d more steps" % (len(SESSION.steps) - 40))
+
+        # Does the keymap/menu lookup resolve the operators this session used?
+        L.append("")
+        L.append("shortcut lookup for operators seen this session:")
+        seen = []
+        for s in SESSION.steps:
+            oid = s.get("op_id", "")
+            if oid and oid not in seen:
+                seen.append(oid)
+        for oid in seen[:25]:
+            L.append("  %-40.40s -> %s"
+                     % (oid, _ov.shortcut_for_operator(oid) or "(none found)"))
+        if not seen:
+            L.append("  (no operator ids recorded)")
+
+        report = "\n".join(L)
+        print("\n" + report + "\n")
+        try:
+            name = "SceneCast Report"
+            txt = bpy.data.texts.get(name) or bpy.data.texts.new(name)
+            txt.clear()
+            txt.write(report)
+            self.report({'INFO'},
+                        "Report written to console and '%s' text block" % name)
+        except Exception as e:
+            self.report({'WARNING'}, "Console only (text block failed: %s)" % e)
         return {'FINISHED'}
 
 
