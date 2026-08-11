@@ -81,8 +81,16 @@ def _export_frame_handler(scene, depsgraph=None):
 
 
 def _seq_strips(se):
-    """Blender 5.0 renamed SequenceEditor.sequences to .strips."""
-    return getattr(se, "strips", None) or se.sequences
+    """Blender 5.0 renamed SequenceEditor.sequences to .strips.
+
+    Test for presence, never truthiness: the editor is created empty, and an
+    empty Blender collection is falsy, so `strips or sequences` picks the
+    wrong one on exactly the versions that need `strips`.
+    """
+    strips = getattr(se, "strips", None)
+    if strips is not None:
+        return strips
+    return se.sequences
 
 
 def _set_any(obj, pairs):

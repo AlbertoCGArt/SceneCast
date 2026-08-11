@@ -348,7 +348,10 @@ class SCENECAST_OT_export(Operator):
             self.report({'INFO'}, "Exported to %s" % out)
             res = {'FINISHED'}
         except Exception as e:
-            self.report({'ERROR'}, "Export failed: %s (try PNG sequence)" % e)
+            hint = ("set Keys to 'Top Left (fast)'" if two_pass
+                    else "try PNG sequence")
+            self.report({'ERROR'}, "Export failed: %s (%s)" % (e, hint))
+            print("[SceneCast] export failed:", e)
             res = {'CANCELLED'}
         finally:
             SESSION.export_active = False
