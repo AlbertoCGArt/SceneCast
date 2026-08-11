@@ -93,6 +93,22 @@ def _seq_strips(se):
     return se.sequences
 
 
+def new_text_strip(strips, name, channel, frame_start, length):
+    """Create a TEXT strip across the Blender versions that renamed the span.
+
+    5.0 takes `length` (name, type, channel, frame_start, length, input1,
+    input2); 4.x took `frame_end`. Neither accepts the other's keyword, so
+    try each and let TypeError pick.
+    """
+    try:
+        return strips.new_effect(name=name, type='TEXT', channel=channel,
+                                 frame_start=frame_start, length=length)
+    except TypeError:
+        return strips.new_effect(name=name, type='TEXT', channel=channel,
+                                 frame_start=frame_start,
+                                 frame_end=frame_start + length)
+
+
 def _set_any(obj, pairs):
     """Set whichever of these attributes this Blender version actually has."""
     for attr, val in pairs:
@@ -149,9 +165,14 @@ def composite_text_video(src_scene, png_dir, out_path, hold, fps, texts, font_si
             start = 1 + i * hold
             if start > len(files):
                 break
-            end = min(start + hold, len(files) + 1)
-            t = strips.new_effect(name="key%04d" % i, type='TEXT', channel=2,
-                                  frame_start=start, frame_end=end)
+            length = min(hold, len(files) + 1 - start)
+            if length < 1:
+                continue
+            try:
+                t = new_text_strip(strips, "key%04d" % i, 2, start, length)
+            except Exception as e:      # one bad strip shouldn't lose the video
+                print("[SceneCast] text strip %d failed: %s" % (i, e))
+                continue
             t.text = txt
             # anchor_* is 4.x+, align_* is the older spelling; set both.
             _set_any(t, (("font_size", font_size), ("use_shadow", True),
