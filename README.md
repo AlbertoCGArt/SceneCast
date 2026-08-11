@@ -25,21 +25,28 @@ to show the evolution of a scene, build tutorials, or create progress videos.
 
 ## Install
 
-**Blender 4.2+ (extension):** run `python scripts/build.py`, then in Blender:
-Edit > Preferences > Get Extensions > (dropdown) > Install from Disk >
-pick `dist/scenecast-<version>.zip`.
+Requires **Blender 4.2 or newer**. Download `scenecast-<version>.zip`, then:
 
-> Because the zip carries `blender_manifest.toml` at its root, Blender 4.2+
-> installs it as an **extension**. It therefore appears under **Extensions**,
-> *not* in the legacy Add-ons list — that is expected. Enable it there.
+**Edit → Preferences → Get Extensions → ⌄ (top right) → Install from Disk…**
+and pick the zip. Enable it if it isn't already.
 
-**Legacy add-on install (pre-4.2):** use the separate
-`dist/scenecast-<version>-legacy.zip`, which nests the files under
-`scenecast/`, via Edit > Preferences > Add-ons > Install. That is the build
-that shows up in the Add-ons list. `python scripts/build.py` produces both.
+> SceneCast installs as an **extension**, so it appears under *Extensions* and
+> **not** in the legacy Add-ons list. That is expected — nothing has gone
+> wrong. Installing from disk works without the add-on being listed on
+> Blender's extensions platform.
 
-Either way the UI lives in the 3D viewport sidebar (**N**) under the
-**SceneCast** tab.
+The UI lives in the 3D viewport sidebar (**N**) under the **SceneCast** tab.
+
+<details>
+<summary>Legacy Add-ons install</summary>
+
+`python scripts/build.py` also emits `scenecast-<version>-legacy.zip`, which
+nests the files under `scenecast/` for **Edit → Preferences → Add-ons →
+Install**. Since the minimum supported Blender is 4.2 — the release that
+introduced extensions — every supported version can use the extension flow
+above, and that is the one to hand to users. The legacy variant exists only
+for anyone who specifically wants the old install path.
+</details>
 
 ## Usage
 
