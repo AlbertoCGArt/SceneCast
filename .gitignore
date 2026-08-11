@@ -9,4 +9,8 @@ scenecast-project.zip
 
 # Defensive: PRO code must never live in the public repo.
 # The paid modules belong in the sibling private repo ../scenecast-pro/.
+# The archive pattern is here because a broad `git add -A` once published it.
 scenecast/pro/
+pro/
+scenecast-pro/
+scenecast-pro*.zip
