@@ -8,7 +8,8 @@ from mathutils import Vector, Matrix
 
 from .state import SESSION, APPLY_LOCKOUT, PLAY_DT
 from .viewnav import (_tag_redraw, _mode_set, _exit_all_edit,
-                      _any_nonobject_mode, _restore_view, _blend_view)
+                      _any_nonobject_mode, _restore_view, _blend_view,
+                      view_mode, restore_stashed_view, STATIC_VIEW_MODES)
 
 # ----------------------------------------------------------------------------
 # Motion smoothing (glide between steps instead of snapping frame-to-frame)
@@ -312,7 +313,10 @@ def _apply_step(index, with_view=True):
     step = SESSION.steps[index]
     sc = bpy.context.scene
     _apply_step_geometry(step, show_edit=sc.scenecast_show_edit)
-    if with_view and sc.scenecast_restore_view:
+    # Only Recorded Views writes the viewport per step. Current and the static
+    # modes must not touch it at all -- writing view_perspective is what used
+    # to knock a Front-ortho viewport into perspective.
+    if with_view and view_mode(sc) == 'RECORDED':
         _restore_view(step)
     _tag_redraw()
 
@@ -360,7 +364,7 @@ def _play_tick():
     if sc.scenecast_smooth_view and idx < n - 1:
         _interp_geometry(SESSION.steps[idx], SESSION.steps[idx + 1], frac)
 
-    if sc.scenecast_restore_view:
+    if view_mode(sc) == 'RECORDED':
         if sc.scenecast_smooth_view and idx < n - 1:
             _blend_view(SESSION.steps[idx], SESSION.steps[idx + 1], frac)
         else:
@@ -370,7 +374,22 @@ def _play_tick():
 
     if SESSION.play_pos >= end and not sc.scenecast_loop:
         SESSION.playing = False
-        _restore_view(SESSION.steps[n - 1])
+        end_playback_view(sc, n)
         return None
     return PLAY_DT
+
+
+def end_playback_view(sc, n):
+    """Settle the viewport when a run stops.
+
+    Recorded Views finishes on the last recorded angle, which is where the
+    session ended. A static mode borrowed the viewport, so it hands back what
+    the user was looking at. Current View was never touched.
+    """
+    mode = view_mode(sc)
+    if mode == 'RECORDED':
+        if n:
+            _restore_view(SESSION.steps[n - 1])
+    elif mode in STATIC_VIEW_MODES:
+        restore_stashed_view()
 

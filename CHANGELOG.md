@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- **View picker** — one **View** setting decides where the camera sits for both
+  playback and export: *Current View* (never touches the viewport), *Recorded
+  Views* (the old restore-and-blend behaviour), static *Front* / *Right* /
+  *Top* orthographic, or *Scene Camera*. Static modes are pointed once and then
+  left alone, framed on the session's **final** step so the model grows into
+  frame instead of overflowing it, and the viewport you started from is handed
+  back when playback or export ends. Replaces the *Restore View on Scrub* and
+  *Use Recorded Views* checkboxes, which overlapped and could fight each other.
+  Playing back in Current View no longer knocks a Front-orthographic viewport
+  into perspective. Smooth Motion greys out outside Recorded Views, where it
+  has nothing to move between.
+
 - **Smooth Motion** — geometry and object transforms now interpolate between
   steps in playback and export, so moves and edits glide instead of snapping.
   Uses a linear (constant-velocity) blend so it reads like the real drag

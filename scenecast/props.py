@@ -7,7 +7,7 @@ from bpy.props import (IntProperty, BoolProperty, EnumProperty,
 from .replay import _playhead_update
 
 _PROP_NAMES = (
-    "scenecast_playhead", "scenecast_restore_view", "scenecast_follow_tip",
+    "scenecast_playhead", "scenecast_view_mode", "scenecast_follow_tip",
     "scenecast_step_hold", "scenecast_loop", "scenecast_smooth_view",
     "scenecast_show_edit", "scenecast_capture_context", "scenecast_restore_context",
     "scenecast_capture_view",
@@ -15,7 +15,7 @@ _PROP_NAMES = (
     "scenecast_isolate", "scenecast_collection_name",
     "scenecast_export_format", "scenecast_export_path",
     "scenecast_export_fps", "scenecast_keys_placement",
-    "scenecast_export_follow_view", "scenecast_export_edit",
+    "scenecast_export_edit",
 )
 
 
@@ -23,9 +23,19 @@ def register_props():
     S = bpy.types.Scene
     S.scenecast_playhead = IntProperty(
         name="Step", default=0, min=0, soft_max=100000, update=_playhead_update)
-    S.scenecast_restore_view = BoolProperty(
-        name="Restore View on Scrub", default=True,
-        description="Snap the viewport back to the view recorded at each step")
+    S.scenecast_view_mode = EnumProperty(
+        name="View", default='RECORDED',
+        items=[('CURRENT', "Current View",
+                "Leave the viewport exactly as it is -- never touch it"),
+               ('RECORDED', "Recorded Views",
+                "Replay the camera as it was during recording"),
+               ('FRONT', "Front", "Static front orthographic"),
+               ('RIGHT', "Right", "Static right orthographic"),
+               ('TOP', "Top", "Static top orthographic"),
+               ('CAMERA', "Scene Camera",
+                "Look through the active scene camera")],
+        description="Where the camera sits while the session plays back and "
+                    "renders. Static views are set once and then left alone")
     S.scenecast_follow_tip = BoolProperty(
         name="Follow Newest", default=True,
         description="Keep the playhead on the newest step while recording")
@@ -92,9 +102,6 @@ def register_props():
                 "One pass, but the corner position is fixed by Blender"),
                ('NONE', "Off", "Don't put keystrokes in the exported video")],
         description="Where keystrokes appear in exported video")
-    S.scenecast_export_follow_view = BoolProperty(
-        name="Use Recorded Views", default=False,
-        description="Restore each step's viewport angle in the export")
     S.scenecast_export_edit = BoolProperty(
         name="Edit Mode in Export", default=False,
         description="EXPERIMENTAL: show the edit cage in exported video for steps "

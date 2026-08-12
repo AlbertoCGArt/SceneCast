@@ -78,6 +78,10 @@ def _export_frame_handler(scene, depsgraph=None):
             _interp_geometry(SESSION.steps[idx], SESSION.steps[idx + 1], frac)
         except Exception as e:
             print("[SceneCast] export interp error:", e)
+    # Only Recorded Views drives the camera per frame. A static mode was
+    # pointed once before the render started and must be left alone -- and
+    # _blend_view flips the projection at its midpoint, so the whole call has
+    # to be skipped, not just the rotation write.
     if _EXPORT["follow"]:
         if _EXPORT["smooth"] and idx < n - 1:
             _blend_view(SESSION.steps[idx], SESSION.steps[idx + 1], frac)

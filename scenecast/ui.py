@@ -81,7 +81,11 @@ class SCENECAST_PT_panel(Panel):
         pr = layout.row(align=True)
         pr.prop(sc, "scenecast_step_hold")
         pr.prop(sc, "scenecast_loop", text="", icon='FILE_REFRESH')
-        layout.prop(sc, "scenecast_smooth_view")
+        layout.prop(sc, "scenecast_view_mode", text="View")
+        smooth = layout.row()
+        # Smoothing only has anything to move between in Recorded Views.
+        smooth.enabled = sc.scenecast_view_mode == 'RECORDED'
+        smooth.prop(sc, "scenecast_smooth_view")
         layout.prop(sc, "scenecast_show_edit")
         layout.prop(sc, "scenecast_restore_context")
 
@@ -118,7 +122,6 @@ class SCENECAST_PT_panel(Panel):
                          icon='ERROR')
 
         layout.separator()
-        layout.prop(sc, "scenecast_restore_view")
         layout.prop(sc, "scenecast_follow_tip")
 
         ebox = layout.box()
@@ -131,7 +134,10 @@ class SCENECAST_PT_panel(Panel):
         krow2.prop(sc, "scenecast_keys_placement", text="Keys")
         ebox.label(text="Speed: %.2fs / step  (matches the Hold above)"
                         % sc.scenecast_step_hold, icon='TIME')
-        ebox.prop(sc, "scenecast_export_follow_view")
+        ebox.label(text="View: %s  (set in Playback above)"
+                        % sc.bl_rna.properties["scenecast_view_mode"]
+                             .enum_items[sc.scenecast_view_mode].name,
+                   icon='VIEW_CAMERA')
         sub = ebox.row()
         sub.enabled = sc.scenecast_show_edit
         sub.prop(sc, "scenecast_export_edit")

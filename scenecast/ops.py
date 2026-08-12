@@ -8,10 +8,12 @@ from bpy.props import EnumProperty
 
 from .state import SESSION, _EXPORT, WATCHDOG_DT, BUILD
 from .viewnav import (_tag_redraw, _exit_all_edit, _any_nonobject_mode,
-                      _find_view3d_context)
+                      _find_view3d_context, view_mode, stash_view,
+                      restore_stashed_view, apply_static_view,
+                      STATIC_VIEW_MODES)
 from .capture import _capture_step, _watchdog_tick, _restore_collections
 from .overlay import keys_for_step
-from .replay import _apply_step_geometry, _play_tick
+from .replay import _apply_step_geometry, _play_tick, end_playback_view
 from .exporter import (_export_frame_handler, _resolve_export_path,
                        _resolve_export_dir, _stash_render, _restore_render,
                        setup_stamp, apply_video_settings, composite_text_video,
@@ -159,6 +161,7 @@ class SCENECAST_OT_play(Operator):
     def execute(self, context):
         if SESSION.playing:
             SESSION.playing = False
+            end_playback_view(context.scene, len(SESSION.steps))
             _tag_redraw()
             return {'FINISHED'}
         n = len(SESSION.steps)
@@ -169,6 +172,15 @@ class SCENECAST_OT_play(Operator):
                         "Switch to Object Mode (or enable Show Edit Mode) to play back")
             return {'CANCELLED'}
         SESSION.recording = False
+        mode = view_mode(context.scene)
+        if mode in STATIC_VIEW_MODES:
+            # Point the camera once, framed on the last step where the model
+            # is largest, then leave it alone for the whole run.
+            stash_view()
+            if not apply_static_view(context.scene, mode, SESSION.steps[n - 1]):
+                restore_stashed_view()
+                self.report({'WARNING'},
+                            "No scene camera -- playing in the current view")
         start = context.scene.scenecast_playhead
         if start >= n - 1:
             start = 0
@@ -264,6 +276,7 @@ class SCENECAST_OT_export(Operator):
             return {'CANCELLED'}
         SESSION.playing = False
         _exit_all_edit()               # export always starts from a clean slate
+        stash_view()                   # handed back in the finally below
 
         sc = context.scene
         rnd = sc.render
@@ -323,10 +336,18 @@ class SCENECAST_OT_export(Operator):
                 setup_stamp(rnd, {'SMALL': 14, 'MEDIUM': 18,
                                   'LARGE': 24}.get(sc.scenecast_keys_size, 14))
 
+            vmode = view_mode(sc)
+            if vmode in STATIC_VIEW_MODES:
+                # Set once, before the render, and never from the frame
+                # handler; restored in the finally below.
+                if not apply_static_view(sc, vmode, SESSION.steps[n - 1]):
+                    self.report({'WARNING'},
+                                "No scene camera -- rendering the current view")
+
             use_edit = sc.scenecast_show_edit and sc.scenecast_export_edit
             _apply_step_geometry(SESSION.steps[0], show_edit=use_edit)
             _EXPORT.update(hold=hold, n=n, last=-1,
-                           follow=sc.scenecast_export_follow_view,
+                           follow=(vmode == 'RECORDED'),
                            smooth=sc.scenecast_smooth_view,
                            editmode=use_edit, stamp=stamp)
 
@@ -359,6 +380,7 @@ class SCENECAST_OT_export(Operator):
                 bpy.app.handlers.frame_change_pre.remove(_export_frame_handler)
             _restore_render(sc, rnd, stash)
             _exit_all_edit()
+            restore_stashed_view()     # give the user their viewport back
             if tmp_dir and os.path.isdir(tmp_dir):
                 try:                      # scratch frames, not the deliverable
                     for f in os.listdir(tmp_dir):
