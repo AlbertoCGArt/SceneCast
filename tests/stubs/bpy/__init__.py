@@ -62,9 +62,24 @@ class _Cursor:
 
 
 class _Co:
-    """Something with .copy(), which is all the capture path asks of it."""
+    """A 3D cursor stand-in: copyable, and subtractable into a length.
+
+    Change detection asks whether the cursor moved by more than an epsilon,
+    so it needs real subtraction -- returning self from copy() made every
+    snapshot alias the live cursor and no move could ever be detected.
+    """
+    def __init__(self, x=0.0, y=0.0, z=0.0):
+        self.x, self.y, self.z = x, y, z
+
     def copy(self):
-        return self
+        return _Co(self.x, self.y, self.z)
+
+    def __sub__(self, other):
+        return _Co(self.x - other.x, self.y - other.y, self.z - other.z)
+
+    @property
+    def length(self):
+        return (self.x ** 2 + self.y ** 2 + self.z ** 2) ** 0.5
 
 
 class _ToolSettings:
@@ -90,6 +105,9 @@ class _Scene(dict):
         self.scenecast_follow_tip = False
         self.scenecast_capture_context = True
         self.scenecast_capture_view = True
+        self.scenecast_capture_modifiers = False
+        self.scenecast_replay_modifiers = True
+        self.scenecast_memory_limit = 0
 
 
 class _Context:
