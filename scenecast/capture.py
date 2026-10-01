@@ -11,6 +11,7 @@ from .viewnav import (_get_view3d_rv3d, classify_view, _tag_redraw,
 from .overlay import shortcut_for_operator
 from . import meshdata
 from .meshdata import pack_edges, pack_faces, snapshot_digest, snapshot_nbytes
+from .modifiers import snapshot_modifiers
 
 # ----------------------------------------------------------------------------
 # Collection isolation (gather all recorded objects into one tidy collection)
@@ -110,7 +111,7 @@ def _visible_mesh_objects():
     return out
 
 
-def _snapshot_object(obj):
+def _snapshot_object(obj, want_mods=False):
     """One object's state at this instant, as packed buffers.
 
     Topology goes into int32 arrays through `foreach_get` rather than into
@@ -147,6 +148,7 @@ def _snapshot_object(obj):
         "vsel": vsel,
         "esel": esel,
         "fsel": fsel,
+        "mods": snapshot_modifiers(obj) if want_mods else None,
     }
     data["h"] = snapshot_digest(data)
     return data
@@ -338,6 +340,8 @@ def _capture_step():
 
     _isolate_objects(objects)
 
+    sc_now = bpy.context.scene
+    want_mods = getattr(sc_now, "scenecast_capture_modifiers", True)
     rv3d = _get_view3d_rv3d()
     step = _new_step(rv3d)
 
@@ -359,7 +363,7 @@ def _capture_step():
         if vcount > budget:
             continue
         try:
-            data = _snapshot_object(obj)
+            data = _snapshot_object(obj, want_mods)
             prev = prev_objs.get(obj.name)
             if prev is not None and prev.get("h") == data["h"]:
                 data = prev

@@ -7,6 +7,7 @@ from .state import SESSION, BUILD
 from .viewnav import _any_nonobject_mode
 from .overlay import _collapse, keys_for_step
 from .meshdata import format_bytes
+from .modifiers import describe_modifiers
 
 
 def _edition_line():
@@ -86,6 +87,7 @@ class SCENECAST_PT_panel(Panel):
 
         layout.prop(sc, "scenecast_capture_context")
         layout.prop(sc, "scenecast_capture_view")
+        layout.prop(sc, "scenecast_capture_modifiers")
         krow = layout.row(align=True)
         krow.prop(sc, "scenecast_show_keys")
         krow.prop(sc, "scenecast_keys_mouse")
@@ -118,6 +120,7 @@ class SCENECAST_PT_panel(Panel):
         smooth.prop(sc, "scenecast_smooth_view")
         layout.prop(sc, "scenecast_show_edit")
         layout.prop(sc, "scenecast_restore_context")
+        layout.prop(sc, "scenecast_replay_modifiers")
 
         idx = max(0, min(sc.scenecast_playhead, n - 1))
         step = SESSION.steps[idx]
@@ -142,6 +145,9 @@ class SCENECAST_PT_panel(Panel):
                       icon='RESTRICT_SELECT_OFF')
         elif act:
             box.label(text="Active: %s" % act, icon='RESTRICT_SELECT_OFF')
+        mods = describe_modifiers(seldata.get("mods")) if seldata else ""
+        if mods:
+            box.label(text="Modifiers: %s" % mods, icon='MODIFIER')
         keys = keys_for_step(idx)
         if keys:
             box.label(text="Keys: " + "  ".join(_collapse(keys)[-6:]), icon='EVENT_A')
@@ -158,11 +164,6 @@ class SCENECAST_PT_panel(Panel):
         ebox.label(text="Export", icon='RENDER_ANIMATION')
         ebox.prop(sc, "scenecast_export_format", text="")
         ebox.prop(sc, "scenecast_export_path", text="")
-        ebox.prop(sc, "scenecast_export_res", text="")
-        if sc.scenecast_export_res == 'CUSTOM':
-            crow = ebox.row(align=True)
-            crow.prop(sc, "scenecast_export_res_x", text="W")
-            crow.prop(sc, "scenecast_export_res_y", text="H")
         ebox.prop(sc, "scenecast_export_fps")
         krow2 = ebox.row()
         krow2.enabled = sc.scenecast_show_keys

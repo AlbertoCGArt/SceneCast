@@ -12,6 +12,7 @@ from .viewnav import (_tag_redraw, _mode_set, _exit_all_edit,
                       view_mode, restore_stashed_view, STATIC_VIEW_MODES,
                       apply_view_filters)
 from .meshdata import edge_pairs, face_lists
+from .modifiers import apply_modifiers
 
 # ----------------------------------------------------------------------------
 # Motion smoothing (glide between steps instead of snapping frame-to-frame)
@@ -283,6 +284,7 @@ def _apply_step_geometry(step, show_edit=False):
     if sc.scenecast_restore_context:
         _restore_context(step, allow_object_select=True)
 
+    restore_mods = getattr(sc, "scenecast_replay_modifiers", True)
     names_in_step = set(step["objs"].keys())
     for name in SESSION.all_names:
         obj = bpy.data.objects.get(name)
@@ -295,6 +297,12 @@ def _apply_step_geometry(step, show_edit=False):
                 obj.hide_viewport = False
             if name != want_edit_name:  # the edit target is rebuilt in Edit Mode below
                 _rebuild_object(obj, step["objs"][name])
+            if restore_mods:
+                # Before the Edit-Mode switch below, deliberately: rebuilding
+                # a stack means clearing it, and doing that under an open
+                # bmesh is asking for trouble. apply_modifiers no-ops when
+                # the stack already matches, which is most steps.
+                apply_modifiers(obj, step["objs"][name].get("mods"))
         else:
             try:
                 obj.hide_set(True)

@@ -146,6 +146,9 @@ def snapshot_digest(data):
         for row in mat:
             for v in row:
                 h.update(b"%a," % float(v))
+    mods = data.get("mods")
+    if mods:
+        h.update(repr(mods).encode("utf-8", "replace"))
     return h.hexdigest()
 
 

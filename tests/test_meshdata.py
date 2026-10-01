@@ -94,7 +94,7 @@ def test_missing_topology_reads_as_empty():
 
 
 # ----------------------------------------------------------------------------
-def _snap(coords, vsel=None, mat=None):
+def _snap(coords, vsel=None, mat=None, mods=None):
     n = len(coords) // 3
     return {
         "vcount": n, "ecount": 0, "fcount": 0,
@@ -104,6 +104,7 @@ def _snap(coords, vsel=None, mat=None):
         "vsel": np.zeros(n, bool) if vsel is None else np.asarray(vsel, bool),
         "esel": np.empty(0, bool), "fsel": np.empty(0, bool),
         "mat": mat or [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]],
+        "mods": mods,
     }
 
 
@@ -118,6 +119,8 @@ def test_digest_matches_for_identical_content():
     _snap([0.0, 0.0, 0.0, 1.0, 0.0, 0.0], vsel=[True, False]),  # selection
     _snap([0.0, 0.0, 0.0, 1.0, 0.0, 0.0],
           mat=[[2, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]]),
+    _snap([0.0, 0.0, 0.0, 1.0, 0.0, 0.0],
+          mods=({"name": "Bevel", "type": "BEVEL", "props": {"width": 0.1}},)),
 ])
 def test_digest_separates_anything_replay_would_show(changed):
     """Two snapshots share one dict when digests match, so every field a

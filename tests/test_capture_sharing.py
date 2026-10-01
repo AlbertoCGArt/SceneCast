@@ -25,7 +25,7 @@ class _FakeObject:
         return [None] * (len(self.coords) // 3)
 
 
-def _fake_snapshot(obj):
+def _fake_snapshot(obj, want_mods=False):
     n = len(obj.coords) // 3
     data = {
         "vcount": n, "ecount": 0, "fcount": 0,
@@ -34,7 +34,7 @@ def _fake_snapshot(obj):
         "floops": np.empty(0, np.int32),
         "vsel": np.zeros(n, bool), "esel": np.empty(0, bool),
         "fsel": np.empty(0, bool),
-        "mat": _IDENTITY,
+        "mat": _IDENTITY, "mods": None,
     }
     data["h"] = snapshot_digest(data)
     return data
@@ -99,8 +99,8 @@ def test_a_selection_only_step_still_gets_its_own_snapshot(scene):
     selected must not share the previous step's dict."""
     capture._capture_step()
 
-    def selected(obj):
-        data = _fake_snapshot(obj)
+    def selected(obj, want_mods=False):
+        data = _fake_snapshot(obj, want_mods)
         if obj.name == "A":
             data["vsel"] = np.ones(data["vcount"], bool)
             data["h"] = snapshot_digest(data)
