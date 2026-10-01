@@ -7,6 +7,8 @@ from .state import SESSION, _EXPORT, KEY_MAX_SHOWN
 from .viewnav import _restore_view, _blend_view, apply_view_filters
 from .replay import _apply_step_geometry, _interp_geometry
 from .overlay import _collapse, keys_for_step, op_label_for_step
+from .props import EXPORT_RESOLUTIONS
+from . import layout as sc_layout
 
 # Render-stamp settings we take over during export and put back afterwards.
 # The viewport keystroke overlay is a Python draw handler, and render.opengl
@@ -20,6 +22,32 @@ _STAMP_ATTRS = (
     "use_stamp_filename", "use_stamp_marker", "use_stamp_sequencer_strip",
     "use_stamp_hostname", "use_stamp_memory",
 )
+
+
+def export_resolution(sc):
+    """(width, height) for this export, or None to leave the scene alone.
+
+    Kept separate from the scene's own render settings on purpose: the size a
+    session should be published at -- 1080p for a tutorial, 1080x1920 for a
+    Reel -- has nothing to do with whatever the file renders stills at, and
+    making the user change Output Properties to publish vertically was the
+    kind of detour that stops the video getting made.
+    """
+    mode = getattr(sc, "scenecast_export_res", 'SCENE')
+    if mode == 'SCENE':
+        return None
+    if mode == 'CUSTOM':
+        return (int(sc.scenecast_export_res_x), int(sc.scenecast_export_res_y))
+    return EXPORT_RESOLUTIONS.get(mode)
+
+
+def export_aspect(sc):
+    """Width / height the export will actually be rendered at."""
+    res = export_resolution(sc)
+    if res is None:
+        rnd = sc.render
+        res = (rnd.resolution_x, rnd.resolution_y)
+    return float(res[0]) / max(1.0, float(res[1]))
 
 
 def _stamp_text_for(step, idx=None):
@@ -139,7 +167,7 @@ def apply_video_settings(rnd, fps):
     rnd.fps = fps
 
 
-def composite_text_video(src_scene, png_dir, out_path, hold, fps, texts, font_size):
+def composite_text_video(src_scene, png_dir, out_path, hold, fps, texts, scale=1.0):
     """Second pass: rebuild the rendered frames into a video with text burned in.
 
     render.opengl will not run Python draw handlers, and Blender's render stamp
@@ -161,6 +189,14 @@ def composite_text_video(src_scene, png_dir, out_path, hold, fps, texts, font_si
         r.resolution_percentage = sr.resolution_percentage
         scene.frame_start = 1
         scene.frame_end = len(files)
+
+        # Text is sized and placed as a fraction of frame height, from the
+        # same table the viewport overlay reads. A pixel size picked for
+        # 1080p is a rounding error at 4K and covers half the frame on a
+        # 1080x1920 vertical export.
+        band_y, band_size = sc_layout.band_norm("keys", scale)
+        out_h = r.resolution_y * max(1, r.resolution_percentage) / 100.0
+        font_size = max(sc_layout.MIN_FONT_PX, band_size * out_h)
 
         se = scene.sequence_editor_create()
         strips = _seq_strips(se)
@@ -188,7 +224,7 @@ def composite_text_video(src_scene, png_dir, out_path, hold, fps, texts, font_si
             _set_any(t, (("font_size", font_size), ("use_shadow", True),
                          ("anchor_x", 'CENTER'), ("anchor_y", 'BOTTOM'),
                          ("align_x", 'CENTER'), ("align_y", 'BOTTOM'),
-                         ("location", (0.5, 0.05))))
+                         ("location", (0.5, band_y))))
 
         apply_video_settings(r, fps)
         r.filepath = out_path
@@ -236,6 +272,8 @@ def _stash_render(sc, rnd):
     return {
         "fs": sc.frame_start, "fe": sc.frame_end, "fc": sc.frame_current,
         "fp": rnd.filepath, "ff": rnd.image_settings.file_format, "fps": rnd.fps,
+        "rx": rnd.resolution_x, "ry": rnd.resolution_y,
+        "rp": rnd.resolution_percentage,
         "mt": getattr(rnd.image_settings, "media_type", None),
         "vf": rnd.ffmpeg.format, "vc": rnd.ffmpeg.codec, "va": rnd.ffmpeg.audio_codec,
         "stamp": {a: getattr(rnd, a) for a in _STAMP_ATTRS if hasattr(rnd, a)},
@@ -246,6 +284,8 @@ def _restore_render(sc, rnd, s):
     try:
         sc.frame_start = s["fs"]; sc.frame_end = s["fe"]; sc.frame_current = s["fc"]
         rnd.filepath = s["fp"]; rnd.fps = s["fps"]
+        rnd.resolution_x = s["rx"]; rnd.resolution_y = s["ry"]
+        rnd.resolution_percentage = s["rp"]
         if s.get("mt") is not None and hasattr(rnd.image_settings, "media_type"):
             rnd.image_settings.media_type = s["mt"]
         rnd.image_settings.file_format = s["ff"]

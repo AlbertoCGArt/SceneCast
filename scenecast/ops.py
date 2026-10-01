@@ -17,7 +17,8 @@ from .replay import _apply_step_geometry, _play_tick, end_playback_view
 from .exporter import (_export_frame_handler, _resolve_export_path,
                        _resolve_export_dir, _stash_render, _restore_render,
                        setup_stamp, apply_video_settings, composite_text_video,
-                       _stamp_text_for)
+                       _stamp_text_for, export_resolution, export_aspect)
+from . import layout as sc_layout
 from . import meshdata
 
 # ----------------------------------------------------------------------------
@@ -340,6 +341,10 @@ class SCENECAST_OT_export(Operator):
         stash = _stash_render(sc, rnd)
         try:
             rnd.fps = sc.scenecast_export_fps
+            res = export_resolution(sc)
+            if res is not None:
+                rnd.resolution_x, rnd.resolution_y = res
+                rnd.resolution_percentage = 100
             img = rnd.image_settings
             if fmt == 'MP4' and not two_pass:
                 apply_video_settings(rnd, sc.scenecast_export_fps)
@@ -359,8 +364,10 @@ class SCENECAST_OT_export(Operator):
             vmode = view_mode(sc)
             if vmode in STATIC_VIEW_MODES:
                 # Set once, before the render, and never from the frame
-                # handler; restored in the finally below.
-                if not apply_static_view(sc, vmode, SESSION.steps[n - 1]):
+                # handler; restored in the finally below. Framed to the
+                # export's own aspect, not the viewport's.
+                if not apply_static_view(sc, vmode, SESSION.steps[n - 1],
+                                         aspect=export_aspect(sc)):
                     self.report({'WARNING'},
                                 "No scene camera -- rendering the current view")
 
@@ -381,10 +388,9 @@ class SCENECAST_OT_export(Operator):
 
             if two_pass:
                 texts = [_stamp_text_for(SESSION.steps[i], i) for i in range(n)]
-                size = {'SMALL': 32, 'MEDIUM': 48,
-                        'LARGE': 64}.get(sc.scenecast_keys_size, 32)
-                composite_text_video(sc, tmp_dir, out, hold,
-                                     sc.scenecast_export_fps, texts, size)
+                composite_text_video(
+                    sc, tmp_dir, out, hold, sc.scenecast_export_fps, texts,
+                    sc_layout.scale_for(sc.scenecast_keys_size))
 
             self.report({'INFO'}, "Exported to %s" % out)
             res = {'FINISHED'}

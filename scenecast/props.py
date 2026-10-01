@@ -16,8 +16,20 @@ _PROP_NAMES = (
     "scenecast_isolate", "scenecast_collection_name",
     "scenecast_export_format", "scenecast_export_path",
     "scenecast_export_fps", "scenecast_keys_placement",
-    "scenecast_export_edit",
+    "scenecast_export_edit", "scenecast_export_res",
+    "scenecast_export_res_x", "scenecast_export_res_y",
 )
+
+# name -> (width, height). SCENE defers to the scene's own render settings;
+# CUSTOM reads the two int properties below.
+EXPORT_RESOLUTIONS = {
+    'HD720':  (1280, 720),
+    'HD1080': (1920, 1080),
+    'QHD':    (2560, 1440),
+    'UHD4K':  (3840, 2160),
+    'VERT':   (1080, 1920),
+    'SQUARE': (1080, 1080),
+}
 
 
 def register_props():
@@ -106,6 +118,24 @@ def register_props():
         name="Output", subtype='FILE_PATH', default="//scenecast_session.mp4",
         description="MP4: file path.  PNG: folder for the frames")
     S.scenecast_export_fps = IntProperty(name="FPS", default=24, min=1, max=120)
+    S.scenecast_export_res = EnumProperty(
+        name="Resolution", default='HD1080',
+        items=[('SCENE', "Scene Settings",
+                "Use the resolution already set in Output Properties"),
+               ('HD720', "720p  (1280x720)", "Landscape 16:9"),
+               ('HD1080', "1080p  (1920x1080)", "Landscape 16:9"),
+               ('QHD', "1440p  (2560x1440)", "Landscape 16:9"),
+               ('UHD4K', "4K  (3840x2160)", "Landscape 16:9"),
+               ('VERT', "Vertical  (1080x1920)",
+                "9:16 for Shorts, Reels and TikTok"),
+               ('SQUARE', "Square  (1080x1080)", "1:1 for feed posts"),
+               ('CUSTOM', "Custom", "Set the pixel size yourself")],
+        description="Output size of the exported video or frames, independent "
+                    "of the scene's own render settings")
+    S.scenecast_export_res_x = IntProperty(
+        name="Width", default=1920, min=4, max=16384, subtype='PIXEL')
+    S.scenecast_export_res_y = IntProperty(
+        name="Height", default=1080, min=4, max=16384, subtype='PIXEL')
     S.scenecast_keys_placement = EnumProperty(
         name="Keys in Video", default='BOTTOM',
         items=[('BOTTOM', "Bottom Centre",

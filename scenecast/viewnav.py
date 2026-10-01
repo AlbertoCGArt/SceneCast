@@ -298,11 +298,16 @@ def _region_aspect():
     return float(region.width) / float(region.height)
 
 
-def apply_static_view(scene, mode, frame_step=None):
+def apply_static_view(scene, mode, frame_step=None, aspect=None):
     """Point the camera once for a fixed-view run. True if it was applied.
 
     Fixed axes are framed on the session's LAST step, where the model is at
     its largest, so it grows into frame rather than overflowing it.
+
+    `aspect` is the shape the result will be seen at. Playback leaves it None
+    and gets the viewport's, but an export renders at its own resolution --
+    frame a 1080x1920 vertical export to a wide viewport and the model walks
+    out of the sides.
     """
     rv3d = _get_view3d_rv3d()
     if rv3d is None:
@@ -336,7 +341,8 @@ def apply_static_view(scene, mode, frame_step=None):
                     ((lo[0] + hi[0]) * 0.5, (lo[1] + hi[1]) * 0.5,
                      (lo[2] + hi[2]) * 0.5))
                 rv3d.view_distance = fit_distance(
-                    float(size[ax_w]), float(size[ax_h]), _region_aspect())
+                    float(size[ax_w]), float(size[ax_h]),
+                    _region_aspect() if aspect is None else aspect)
             except Exception:
                 pass
     return True

@@ -164,6 +164,11 @@ class SCENECAST_PT_panel(Panel):
         ebox.label(text="Export", icon='RENDER_ANIMATION')
         ebox.prop(sc, "scenecast_export_format", text="")
         ebox.prop(sc, "scenecast_export_path", text="")
+        ebox.prop(sc, "scenecast_export_res", text="")
+        if sc.scenecast_export_res == 'CUSTOM':
+            crow = ebox.row(align=True)
+            crow.prop(sc, "scenecast_export_res_x", text="W")
+            crow.prop(sc, "scenecast_export_res_y", text="H")
         ebox.prop(sc, "scenecast_export_fps")
         krow2 = ebox.row()
         krow2.enabled = sc.scenecast_show_keys
