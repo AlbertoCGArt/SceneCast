@@ -4,7 +4,7 @@ import time
 
 # Bumped on every build that changes capture/replay behaviour, so a bug report
 # can be tied to the code that produced it rather than to "the latest zip".
-BUILD = "1.0.0+20"
+BUILD = "1.1.0+21"
 
 
 # -- Config -------------------------------------------------------------------
@@ -54,6 +54,10 @@ class _Session:
         self.keys_captured_total = 0     # running count this session (panel signal)
         self.export_active = False       # true while rendering an export
         self.export_step_idx = 0
+        self.bytes_est = 0               # running session footprint; kept
+                                         # incrementally because measuring it
+                                         # per step is O(session) per step
+        self.memory_stopped = False      # recording was halted by the budget
 
 SESSION = _Session()
 

@@ -18,6 +18,7 @@ from .exporter import (_export_frame_handler, _resolve_export_path,
                        _resolve_export_dir, _stash_render, _restore_render,
                        setup_stamp, apply_video_settings, composite_text_video,
                        _stamp_text_for)
+from . import meshdata
 
 # ----------------------------------------------------------------------------
 def _keylogger_watchdog():
@@ -68,6 +69,9 @@ class SCENECAST_OT_toggle(Operator):
             SESSION.pending_keys.clear()
             SESSION.key_log.clear()
             SESSION.keys_captured_total = 0
+            SESSION.memory_stopped = False
+            if not SESSION.steps:
+                SESSION.bytes_est = 0
             try:
                 _capture_step()     # baseline: the scene before anything happens
             except Exception:
@@ -117,6 +121,8 @@ class SCENECAST_OT_clear(Operator):
         SESSION.key_buffer.clear()
         SESSION.pending_keys.clear()
         SESSION.keys_captured_total = 0
+        SESSION.bytes_est = 0
+        SESSION.memory_stopped = False
         SESSION.playing = False
         context.scene["scenecast_playhead"] = 0
         self.report({'INFO'}, "Session cleared")
@@ -216,6 +222,20 @@ class SCENECAST_OT_diagnose(Operator):
         L.append("live key_buffer     : %d" % len(SESSION.key_buffer))
         L.append("pending (undrained) : %d" % len(SESSION.pending_keys))
         L.append("steps               : %d" % len(SESSION.steps))
+        exact = meshdata.session_bytes(SESSION.steps)
+        L.append("session memory      : %s measured, %s running estimate"
+                 % (meshdata.format_bytes(exact),
+                    meshdata.format_bytes(SESSION.bytes_est)))
+        L.append("memory limit        : %d MB (stopped=%s)"
+                 % (getattr(sc, "scenecast_memory_limit", 0),
+                    SESSION.memory_stopped))
+        n_objs = len({id(st.get("objs")) for st in SESSION.steps})
+        n_snaps = len({id(d) for st in SESSION.steps
+                       for d in (st.get("objs") or {}).values()})
+        L.append("distinct obj tables : %d of %d steps"
+                 % (n_objs, len(SESSION.steps)))
+        L.append("distinct snapshots  : %d (the rest are shared references)"
+                 % n_snaps)
         if SESSION.key_log:
             sample = ", ".join(t for t, _ in SESSION.key_log[:12])
             L.append("first logged keys   : %s" % sample)

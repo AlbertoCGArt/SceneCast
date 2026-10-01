@@ -6,6 +6,7 @@ from bpy.types import Panel
 from .state import SESSION, BUILD
 from .viewnav import _any_nonobject_mode
 from .overlay import _collapse, keys_for_step
+from .meshdata import format_bytes
 
 
 def _edition_line():
@@ -20,6 +21,34 @@ def _edition_line():
     except Exception:
         edition = "Free"
     return "SceneCast %s  -  build %s" % (edition, BUILD)
+
+
+def _draw_memory(layout, sc, n_steps):
+    """Session footprint, and the budget that stops it taking Blender down.
+
+    Shown always rather than on a warning threshold: the number is the whole
+    reason a long session is or is not possible, and finding that out at the
+    moment recording stops is finding out too late.
+    """
+    limit_mb = getattr(sc, "scenecast_memory_limit", 0)
+    used = SESSION.bytes_est
+    row = layout.row(align=True)
+    if limit_mb > 0:
+        frac = used / float(limit_mb * (1 << 20))
+        icon = 'ERROR' if frac >= 0.75 else 'NONE'
+        row.label(text="Memory: %s of %d MB" % (format_bytes(used), limit_mb),
+                  icon=icon)
+    else:
+        row.label(text="Memory: %s" % format_bytes(used))
+    row.prop(sc, "scenecast_memory_limit", text="")
+
+    if SESSION.memory_stopped:
+        box = layout.box()
+        box.alert = True
+        box.label(text="Recording stopped: memory limit reached.", icon='ERROR')
+        box.label(text="%d steps kept. Raise the limit to record longer."
+                       % n_steps)
+
 
 # ----------------------------------------------------------------------------
 class SCENECAST_PT_panel(Panel):
@@ -45,6 +74,7 @@ class SCENECAST_PT_panel(Panel):
         srow = layout.row(align=True)
         srow.label(text="Captured steps: %d" % n)
         srow.label(text="Keys: %d" % SESSION.keys_captured_total, icon='EVENT_A')
+        _draw_memory(layout, sc, n)
         if SESSION.recording:
             layout.label(text="Live -- edit your meshes...", icon='RADIOBUT_ON')
 
@@ -128,6 +158,11 @@ class SCENECAST_PT_panel(Panel):
         ebox.label(text="Export", icon='RENDER_ANIMATION')
         ebox.prop(sc, "scenecast_export_format", text="")
         ebox.prop(sc, "scenecast_export_path", text="")
+        ebox.prop(sc, "scenecast_export_res", text="")
+        if sc.scenecast_export_res == 'CUSTOM':
+            crow = ebox.row(align=True)
+            crow.prop(sc, "scenecast_export_res_x", text="W")
+            crow.prop(sc, "scenecast_export_res_y", text="H")
         ebox.prop(sc, "scenecast_export_fps")
         krow2 = ebox.row()
         krow2.enabled = sc.scenecast_show_keys

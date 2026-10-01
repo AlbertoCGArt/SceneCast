@@ -11,6 +11,7 @@ from .viewnav import (_tag_redraw, _mode_set, _exit_all_edit,
                       _any_nonobject_mode, _restore_view, _blend_view,
                       view_mode, restore_stashed_view, STATIC_VIEW_MODES,
                       apply_view_filters)
+from .meshdata import edge_pairs, face_lists
 
 # ----------------------------------------------------------------------------
 # Motion smoothing (glide between steps instead of snapping frame-to-frame)
@@ -159,7 +160,10 @@ def _rebuild_object(obj, data):
         else:
             verts = data["coords"].reshape(-1, 3).tolist()
             mesh.clear_geometry()
-            mesh.from_pydata(verts, data["edges"], data["faces"])
+            # from_pydata wants Python sequences, so the packed buffers are
+            # unpacked here and only here -- on the rare step that actually
+            # changes topology, never on the per-frame path.
+            mesh.from_pydata(verts, edge_pairs(data), face_lists(data))
             mesh.validate(verbose=False)
         _apply_mesh_selection(mesh, data)
         mesh.update()
@@ -185,7 +189,7 @@ def _rebuild_object_editmode(obj, data):
             for i, v in enumerate(vs):
                 v.select = bool(vsel[i])
         esel = data.get("esel")
-        for ei, e in enumerate(data["edges"]):
+        for ei, e in enumerate(edge_pairs(data)):
             try:
                 edge = bm.edges.new((vs[e[0]], vs[e[1]]))
                 if esel is not None:
@@ -193,7 +197,7 @@ def _rebuild_object_editmode(obj, data):
             except ValueError:
                 pass                    # edge already exists
         fsel = data.get("fsel")
-        for fi, f in enumerate(data["faces"]):
+        for fi, f in enumerate(face_lists(data)):
             try:
                 face = bm.faces.new([vs[i] for i in f])
                 if fsel is not None:

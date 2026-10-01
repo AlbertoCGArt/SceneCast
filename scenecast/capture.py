@@ -9,6 +9,8 @@ from .state import (SESSION, DEBOUNCE, MAX_VERTS_FULL, WATCHDOG_DT,
 from .viewnav import (_get_view3d_rv3d, classify_view, _tag_redraw,
                       _edit_mode_object)
 from .overlay import shortcut_for_operator
+from . import meshdata
+from .meshdata import pack_edges, pack_faces, snapshot_digest, snapshot_nbytes
 
 # ----------------------------------------------------------------------------
 # Collection isolation (gather all recorded objects into one tidy collection)
@@ -109,6 +111,12 @@ def _visible_mesh_objects():
 
 
 def _snapshot_object(obj):
+    """One object's state at this instant, as packed buffers.
+
+    Topology goes into int32 arrays through `foreach_get` rather than into
+    lists of tuples built one element at a time: the lists were about ten
+    times the memory and slow enough to stutter the viewport on a dense mesh.
+    """
     if obj.mode == 'EDIT':
         try:
             obj.update_from_editmode()
@@ -126,21 +134,28 @@ def _snapshot_object(obj):
     mesh.vertices.foreach_get("select", vsel)
     mesh.edges.foreach_get("select", esel)
     mesh.polygons.foreach_get("select", fsel)
-    return {
+    faces, floops = pack_faces(mesh)
+    data = {
         "vcount": vcount,
+        "ecount": ecount,
         "fcount": fcount,
         "coords": coords,
-        "edges": [tuple(e.vertices) for e in mesh.edges],
-        "faces": [tuple(p.vertices) for p in mesh.polygons],
+        "edges": pack_edges(mesh),
+        "faces": faces,
+        "floops": floops,
         "mat": obj.matrix_world.copy(),
         "vsel": vsel,
         "esel": esel,
         "fsel": fsel,
     }
+    data["h"] = snapshot_digest(data)
+    return data
 
 
 def _objects_equal(a, b):
     """Geometry + transform only (selection is compared separately as context)."""
+    if a is b:
+        return True                      # shared snapshot: nothing to compare
     if a["vcount"] != b["vcount"] or a["fcount"] != b["fcount"]:
         return False
     if not np.array_equal(a["coords"], b["coords"]):
@@ -153,6 +168,8 @@ def _objects_equal(a, b):
 
 
 def _selection_equal(a, b):
+    if a is b:
+        return True
     for m in ("vsel", "esel", "fsel"):
         va, vb = a.get(m), b.get(m)
         if (va is None) != (vb is None):
@@ -301,6 +318,7 @@ def _capture_view_step():
     step["geo_new"] = False
     _capture_context(step)
     SESSION.steps.append(step)
+    SESSION.bytes_est += meshdata._STEP_OVERHEAD
     step["keys"] = list(SESSION.pending_keys)
     SESSION.pending_keys.clear()
 
@@ -325,19 +343,41 @@ def _capture_step():
 
     _capture_context(step)
 
+    # Most steps touch one object in a scene full of them, so the rest are
+    # byte-for-byte what they were a step ago. Those share the previous
+    # step's snapshot dict by reference instead of storing a second copy:
+    # replay only ever reads snapshots, so one dict can serve any number of
+    # steps. This is the difference between a session that grows with the
+    # scene and one that grows with the edit.
+    prev_objs = SESSION.steps[-1]["objs"] if SESSION.steps else {}
+    fresh_bytes = 0
+    shared = 0
+
     budget = MAX_VERTS_FULL
     for obj in objects:
         vcount = len(obj.data.vertices)
         if vcount > budget:
             continue
         try:
-            step["objs"][obj.name] = _snapshot_object(obj)
+            data = _snapshot_object(obj)
+            prev = prev_objs.get(obj.name)
+            if prev is not None and prev.get("h") == data["h"]:
+                data = prev
+                shared += 1
+            else:
+                fresh_bytes += snapshot_nbytes(data)
+            step["objs"][obj.name] = data
             budget -= vcount
         except Exception as e:
             print("[SceneCast] snapshot error on %s: %s" % (obj.name, e))
 
     if not step["objs"]:
         return
+    # Every object was untouched -> hand the whole dict over, so the step
+    # costs one pointer rather than one per object.
+    if shared and shared == len(step["objs"]) and prev_objs:
+        if set(step["objs"]) == set(prev_objs):
+            step["objs"] = prev_objs
 
     geo_new = True
     if SESSION.steps:
@@ -364,6 +404,7 @@ def _capture_step():
 
     SESSION.steps.append(step)
     SESSION.all_names.update(step["objs"].keys())
+    SESSION.bytes_est += fresh_bytes + meshdata._STEP_OVERHEAD
     step["keys"] = list(SESSION.pending_keys)
     SESSION.pending_keys.clear()
     op_id = step.get("op_id", "")
@@ -382,7 +423,33 @@ def _capture_step():
             sc["scenecast_playhead"] = len(SESSION.steps) - 1
     except Exception:
         pass
+    _check_memory_budget()
     _tag_redraw()
+
+
+def _check_memory_budget():
+    """Stop recording before the session eats the machine.
+
+    Running out of memory in Blender does not raise -- it takes the process,
+    and the unsaved .blend with it. Stopping the recording keeps everything
+    captured so far, keeps the file, and says why; the limit is a scene
+    setting so anyone with the RAM to spare can raise it.
+    """
+    if SESSION.memory_stopped:
+        return
+    try:
+        limit_mb = int(getattr(bpy.context.scene, "scenecast_memory_limit", 0))
+    except Exception:
+        return
+    if limit_mb <= 0 or SESSION.bytes_est < limit_mb * (1 << 20):
+        return
+    SESSION.memory_stopped = True
+    SESSION.recording = False
+    print("[SceneCast] memory limit reached (%s of %d MB) after %d steps -- "
+          "recording stopped. Raise 'Memory Limit' in the panel to record "
+          "longer sessions."
+          % (meshdata.format_bytes(SESSION.bytes_est), limit_mb,
+             len(SESSION.steps)))
 
 
 def _settle_tick():
