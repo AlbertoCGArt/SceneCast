@@ -4,7 +4,7 @@ import os
 import bpy
 
 from .state import SESSION, _EXPORT, KEY_MAX_SHOWN
-from .viewnav import _restore_view, _blend_view
+from .viewnav import _restore_view, _blend_view, apply_view_filters
 from .replay import _apply_step_geometry, _interp_geometry
 from .overlay import _collapse, keys_for_step, op_label_for_step
 
@@ -87,6 +87,7 @@ def _export_frame_handler(scene, depsgraph=None):
             _blend_view(SESSION.steps[idx], SESSION.steps[idx + 1], frac)
         else:
             _restore_view(SESSION.steps[idx])
+    apply_view_filters(idx, frac)
 
 
 def _seq_strips(se):

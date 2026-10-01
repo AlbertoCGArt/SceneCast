@@ -214,6 +214,49 @@ def _restore_view(step):
 
 
 # ----------------------------------------------------------------------------
+# View filters
+#
+# Extension point for anything that wants the last word on where the camera
+# sits -- a punch-in that tightens on the active object, or a set of custom
+# camera keys that overrides the recorded angles entirely. Filters run after
+# the view has been set, in every view mode, on the three paths that move it:
+# scrubbing, playback and export. Each is handed the step index and how far
+# between that step and the next the current frame is.
+# ----------------------------------------------------------------------------
+_VIEW_FILTERS = []
+
+
+def register_view_filter(fn):
+    if fn not in _VIEW_FILTERS:
+        _VIEW_FILTERS.append(fn)
+
+
+def unregister_view_filter(fn):
+    if fn in _VIEW_FILTERS:
+        _VIEW_FILTERS.remove(fn)
+
+
+def apply_view_filters(idx, frac=0.0):
+    """Run every registered filter over the live viewport. Never raises.
+
+    A filter that throws must not take playback or a half-finished render
+    down with it, so each one is isolated -- but it is reported, because a
+    silently dead filter looks exactly like a feature that does nothing.
+    """
+    if not _VIEW_FILTERS:
+        return
+    rv3d = _get_view3d_rv3d()
+    if rv3d is None:
+        return
+    for fn in list(_VIEW_FILTERS):
+        try:
+            fn(rv3d, idx, frac)
+        except Exception as e:
+            print("[SceneCast] view filter %s failed: %s"
+                  % (getattr(fn, "__name__", fn), e))
+
+
+# ----------------------------------------------------------------------------
 # Static view modes: set the camera once, then never touch it again
 # ----------------------------------------------------------------------------
 _VIEW_STASH = {}

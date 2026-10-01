@@ -9,7 +9,8 @@ from mathutils import Vector, Matrix
 from .state import SESSION, APPLY_LOCKOUT, PLAY_DT
 from .viewnav import (_tag_redraw, _mode_set, _exit_all_edit,
                       _any_nonobject_mode, _restore_view, _blend_view,
-                      view_mode, restore_stashed_view, STATIC_VIEW_MODES)
+                      view_mode, restore_stashed_view, STATIC_VIEW_MODES,
+                      apply_view_filters)
 
 # ----------------------------------------------------------------------------
 # Motion smoothing (glide between steps instead of snapping frame-to-frame)
@@ -318,6 +319,8 @@ def _apply_step(index, with_view=True):
     # to knock a Front-ortho viewport into perspective.
     if with_view and view_mode(sc) == 'RECORDED':
         _restore_view(step)
+    if with_view:
+        apply_view_filters(index, 0.0)
     _tag_redraw()
 
 
@@ -369,6 +372,7 @@ def _play_tick():
             _blend_view(SESSION.steps[idx], SESSION.steps[idx + 1], frac)
         else:
             _restore_view(SESSION.steps[idx])
+    apply_view_filters(idx, frac)
 
     _tag_redraw()
 
