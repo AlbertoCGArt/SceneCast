@@ -336,11 +336,63 @@ def _apply_step(index, with_view=True):
     _tag_redraw()
 
 
+# Set while SceneCast moves the playhead itself -- following the newest step
+# during a recording, tracking playback, resetting after a clear or a load --
+# so the update callback does not replay the step the playhead lands on.
+_QUIET = False
+
+
+def set_playhead(scene, idx):
+    """Move the playhead without replaying the step it lands on.
+
+    This used to be `scene["scenecast_playhead"] = idx`, which writes the
+    property's storage directly and so skips the update callback. Blender 5.0
+    keeps properties defined with bpy.props in a separate container from
+    custom properties, and the same line now creates an unrelated custom
+    property instead: the Scrub slider, which reads the real one, sat at 0
+    through every recording and every playback. So the write goes through the
+    property, with the callback told to stand down.
+    """
+    global _QUIET
+    _QUIET = True
+    try:
+        scene.scenecast_playhead = max(0, int(idx))
+    finally:
+        _QUIET = False
+    _drop_stray_custom_property(scene)
+
+
+def _drop_stray_custom_property(scene):
+    """Remove the custom property the old write left behind on Blender 5.0.
+
+    It does nothing and is saved into the .blend, where it shows up under
+    Scene > Custom Properties looking like a setting. Only on 5.0 and later:
+    before that the same key *is* the real property's storage, and deleting
+    it would reset the playhead.
+    """
+    try:
+        if bpy.app.version < (5, 0, 0):
+            return
+        if "scenecast_playhead" in scene:
+            del scene["scenecast_playhead"]
+    except Exception:
+        pass
+
+
 def _playhead_update(self, context):
+    if _QUIET:
+        return
     n = len(SESSION.steps)
     if n == 0 or SESSION.playing or SESSION.recording:
         return
-    _apply_step(max(0, min(self.scenecast_playhead, n - 1)))
+    idx = self.scenecast_playhead
+    if idx > n - 1:
+        # The property's range is fixed at registration and a session's
+        # length is not, so the slider can be dragged past the last step.
+        # Pull it back rather than display a step that does not exist.
+        idx = n - 1
+        set_playhead(self, idx)
+    _apply_step(max(0, idx))
 
 
 # ----------------------------------------------------------------------------
@@ -374,7 +426,7 @@ def _play_tick():
     if idx != SESSION.play_last_idx:
         SESSION.play_last_idx = idx
         _apply_step_geometry(SESSION.steps[idx], show_edit=sc.scenecast_show_edit)
-        sc["scenecast_playhead"] = idx
+        set_playhead(sc, idx)
 
     if sc.scenecast_smooth_view and idx < n - 1:
         _interp_geometry(SESSION.steps[idx], SESSION.steps[idx + 1], frac)

@@ -41,6 +41,17 @@
   the fraction between steps. Nothing in the free build registers one; it is
   what the Pro punch-in and director camera hang off, and it costs a single
   emptiness check per frame when unused.
+- **Fixed: the Scrub number now moves on Blender 5.0** — it sat at 0 through
+  every recording and every playback, even though both were working. The
+  playhead was moved with `scene["scenecast_playhead"] = idx`, a direct write
+  to the property's storage that skips its update callback. Blender 5.0 keeps
+  properties defined with `bpy.props` in a separate container from custom
+  properties, so that line started creating an unrelated custom property
+  instead, and the slider -- which reads the real one -- never saw a change.
+  Writes now go through the property with the callback told to stand down,
+  and the stray custom property is removed from scenes that picked one up.
+  The playhead is also clamped to the session's length: it could be dragged
+  past the last step and show a step that did not exist.
 - **Fixed** — the keymap fallback that labels a step from its operator's
   shortcut referenced an undefined name and raised on every step that had no
   logged keys, so the fallback never once ran.

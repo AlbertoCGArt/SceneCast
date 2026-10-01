@@ -149,3 +149,20 @@ def test_no_limit_never_stops(scene):
         capture._capture_step()
     assert SESSION.memory_stopped is False
     assert SESSION.recording is True
+
+
+def test_follow_newest_moves_the_scrub_with_each_step(scene, monkeypatch):
+    """With Follow Newest on, the playhead tracks the latest step -- the one
+    the Scrub slider reads, not a custom property that happens to share its
+    name. On Blender 5.0 those are separate, and the slider sat at 0."""
+    sc = bpy.context.scene
+    monkeypatch.setattr(sc, "scenecast_follow_tip", True)
+    monkeypatch.setattr(sc, "scenecast_playhead", 0, raising=False)
+    edited = scene[0]
+    for i in range(1, 6):
+        edited.coords[0] = float(i)
+        capture._capture_step()
+    assert sc.scenecast_playhead == 4
+    capture._capture_view_step()             # camera steps follow too
+    assert sc.scenecast_playhead == 5
+    assert "scenecast_playhead" not in sc

@@ -13,7 +13,8 @@ from .viewnav import (_tag_redraw, _exit_all_edit, _any_nonobject_mode,
                       STATIC_VIEW_MODES)
 from .capture import _capture_step, _watchdog_tick, _restore_collections
 from .overlay import keys_for_step
-from .replay import _apply_step_geometry, _play_tick, end_playback_view
+from .replay import (_apply_step_geometry, _play_tick, end_playback_view,
+                     set_playhead)
 from .exporter import (_export_frame_handler, _resolve_export_path,
                        _resolve_export_dir, _stash_render, _restore_render,
                        setup_stamp, apply_video_settings, composite_text_video,
@@ -125,7 +126,7 @@ class SCENECAST_OT_clear(Operator):
         SESSION.bytes_est = 0
         SESSION.memory_stopped = False
         SESSION.playing = False
-        context.scene["scenecast_playhead"] = 0
+        set_playhead(context.scene, 0)
         self.report({'INFO'}, "Session cleared")
         _tag_redraw()
         return {'FINISHED'}

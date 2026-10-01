@@ -12,6 +12,7 @@ from .overlay import shortcut_for_operator
 from . import meshdata
 from .meshdata import pack_edges, pack_faces, snapshot_digest, snapshot_nbytes
 from .modifiers import snapshot_modifiers
+from .replay import set_playhead
 
 # ----------------------------------------------------------------------------
 # Collection isolation (gather all recorded objects into one tidy collection)
@@ -327,7 +328,7 @@ def _capture_view_step():
     try:
         sc = bpy.context.scene
         if sc.scenecast_follow_tip:
-            sc["scenecast_playhead"] = len(SESSION.steps) - 1
+            set_playhead(sc, len(SESSION.steps) - 1)
     except Exception:
         pass
     _tag_redraw()
@@ -424,7 +425,7 @@ def _capture_step():
     try:
         sc = bpy.context.scene
         if sc.scenecast_follow_tip:
-            sc["scenecast_playhead"] = len(SESSION.steps) - 1
+            set_playhead(sc, len(SESSION.steps) - 1)
     except Exception:
         pass
     _check_memory_budget()
