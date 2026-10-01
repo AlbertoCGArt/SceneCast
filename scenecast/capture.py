@@ -366,6 +366,7 @@ def _capture_step():
     SESSION.all_names.update(step["objs"].keys())
     step["keys"] = list(SESSION.pending_keys)
     SESSION.pending_keys.clear()
+    op_id = step.get("op_id", "")
     if not step["keys"] and op_id and op_id != prev_op_id:
         # Nothing reached the logger (modal tool ate the keys, or it was
         # dropped) -- fall back to the shortcut the operator is bound to.
