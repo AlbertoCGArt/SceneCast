@@ -48,8 +48,9 @@ _PRO_EDITS = {
         ('name = "SceneCast"', 'name = "SceneCast Pro"'),
         ('tagline = "Record your modeling session and replay it as a tutorial '
          'or timelapse"',
-         'tagline = "Record your modeling session with notes, chapters, '
-         'annotated export and saved sessions"'),
+         # Blender's manifest tagline is length-limited, so this names the
+         # tier rather than listing what is in it.
+         'tagline = "Record, annotate, direct and export modeling sessions"'),
     ),
     "__init__.py": (
         ('"name": "SceneCast",', '"name": "SceneCast Pro",'),

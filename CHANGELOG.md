@@ -1,6 +1,49 @@
 # Changelog
 
-## Unreleased
+## 1.1.0
+
+- **Sessions stop eating memory** — a snapshot's topology is now int32 numpy
+  buffers filled by `foreach_get`, instead of a Python list holding one tuple
+  per edge and per face; faces are stored CSR-style (flat indices + a loop
+  count per face) because a mesh mixes triangles, quads and n-gons. On top of
+  that, every object snapshot carries a content digest, and an object that is
+  byte-for-byte what it was a step ago shares the previous step's snapshot by
+  reference instead of storing a second copy — so a five-object scene where
+  one object is edited per step costs one snapshot per step, not five. When
+  nothing at all changed, the whole object table is shared. Replay only reads
+  snapshots, which is what makes the sharing safe.
+- **Memory readout and budget** — the panel shows what the session is holding,
+  next to a **Memory Limit** (default 2048 MB, 0 = no limit). Running out of
+  memory does not raise in Blender, it takes the process and the unsaved file
+  with it, so recording stops at the limit with everything captured so far
+  kept and an explanation in the panel. Diagnostics reports the measured
+  footprint, the running estimate, and how many snapshots are shared.
+- **Modifier stacks are recorded** — each step captures every object's
+  modifier list, in order, with its settings, and replay puts the stack back.
+  Hard-surface sessions replayed as the naked control cage before this, with
+  the Mirror/Bevel/Subdivision that was most of the work simply missing.
+  Settings are read generically off `bl_rna` rather than from a per-type
+  table, so modifier types SceneCast has never heard of are still captured;
+  datablock links are stored by name and looked up again on replay. Two
+  switches: **Capture Modifiers** while recording, **Replay Modifiers** while
+  scrubbing and exporting.
+- **Export resolution** — a **Resolution** picker in the Export box:
+  720p/1080p/1440p/4K, **Vertical (1080x1920)** for Shorts, Reels and TikTok,
+  **Square (1080x1080)**, Custom, or the scene's own settings. Independent of
+  Output Properties, restored afterwards. A static view frames itself to the
+  export's aspect rather than the viewport's, so a vertical export no longer
+  loses the model out of the sides, and composited keystroke text is sized and
+  placed from the shared layout table against the output height — a pixel size
+  picked for 1080p was a rounding error at 4K.
+- **View filters** — an extension point in `viewnav`: anything registered
+  gets the last word on where the camera sits, in every view mode, on all
+  three paths that move it (scrub, playback, export), with the step index and
+  the fraction between steps. Nothing in the free build registers one; it is
+  what the Pro punch-in and director camera hang off, and it costs a single
+  emptiness check per frame when unused.
+- **Fixed** — the keymap fallback that labels a step from its operator's
+  shortcut referenced an undefined name and raised on every step that had no
+  logged keys, so the fallback never once ran.
 
 - **View picker** — one **View** setting decides where the camera sits for both
   playback and export: *Current View* (never touches the viewport), *Recorded

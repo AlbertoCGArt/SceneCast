@@ -11,7 +11,12 @@ to show the evolution of a scene, build tutorials, or create progress videos.
   which object was active, what was selected, where the 3D cursor was, which
   pivot/orientation/select-mode was set, and the keys you pressed.
 - **Multi-object** — captures every visible mesh object; objects added
-  mid-session hide when you scrub before their creation.
+  mid-session hide when you scrub before their creation. Objects that didn't
+  change share one snapshot between steps, so a busy scene costs what you
+  edited, not what's in it.
+- **Modifier stacks** — the modifier list, its order and its settings are
+  recorded per step and rebuilt on replay, so a Mirror or Bevel added
+  mid-session shows up in the video.
 - **Edit-mode replay** — steps recorded in Edit Mode replay with the edit cage
   and the original selection highlighted (bmesh rebuild path).
 - **Smooth camera** — playback and export glide between recorded viewport
@@ -21,7 +26,12 @@ to show the evolution of a scene, build tutorials, or create progress videos.
 - **Collection isolation** — recorded objects are gathered into a dedicated
   collection on Record and restored on Clear.
 - **Export** — MP4 (H.264) or PNG sequence via the viewport OpenGL renderer,
-  with per-step frame holds and optional recorded-view camera.
+  with per-step frame holds and optional recorded-view camera. Pick the output
+  size in the panel — 720p through 4K, 1080x1920 vertical for Shorts and
+  Reels, square, or custom — without touching Output Properties.
+- **Memory budget** — the panel shows what the session is holding and stops
+  recording at a limit you set, rather than letting Blender run out of memory
+  and take the unsaved file with it.
 
 ## Install
 
@@ -64,8 +74,15 @@ pip install pytest
 pytest tests/
 ```
 
-`tests/stubs/` contains minimal `bpy`/`bmesh`/`blf`/`mathutils` stand-ins so
-the package can be imported and its logic exercised in CI.
+`tests/stubs/` contains `bpy`/`bmesh`/`blf`/`mathutils` stand-ins so the
+package can be imported and its logic exercised in CI. The `mathutils` stub
+does real arithmetic -- several behaviours under test are about *how* a
+camera interpolates, which a Quaternion that cannot slerp cannot answer.
+
+`viewnav.register_view_filter(fn)` is the extension point for anything that
+wants the last word on the viewport: filters run after the view has been set,
+on scrub, playback and export alike, and are handed the step index and how
+far between that step and the next the frame is.
 
 ## Project layout
 
@@ -73,6 +90,8 @@ the package can be imported and its logic exercised in CI.
 scenecast/
   __init__.py    registration hub (bl_info, register/unregister)
   state.py       session store + config constants
+  meshdata.py    packed topology, content digests, session size accounting
+  modifiers.py   modifier-stack capture and replay
   viewnav.py     viewport discovery, view classification, view interpolation
   capture.py     snapshots, change detection, depsgraph handler, watchdog
   replay.py      mesh rebuilds, context restore, playback clock
@@ -83,11 +102,18 @@ scenecast/
   props.py       scene property registration
 ```
 
-## Known limitations (v1.0)
+## Known limitations
 
 - Sessions are in-memory only; closing the file discards the recording.
-- Memory grows with mesh size × steps (differential storage is the next
-  major milestone — see ROADMAP).
+- Memory grows with mesh size × *changed* steps. Unchanged objects and
+  unchanged steps are shared rather than copied, and topology is stored as
+  int32 buffers, but a long session on a dense mesh still has a ceiling —
+  hence the memory budget. Quantised coordinate deltas are the next step
+  (see ROADMAP).
+- Modifier capture stores plain settings and datablock links by name. Curve
+  mappings, hook vertex lists and other collection-valued settings are
+  skipped rather than guessed at, and replaying a stack rebuilds it on the
+  live object.
 - Deleted objects can't be resurrected on rewind (they hide instead).
 - Objects are tracked by name; renaming mid-session breaks the thread.
 - Menu popups cannot be reproduced. A Blender menu is a transient UI popup

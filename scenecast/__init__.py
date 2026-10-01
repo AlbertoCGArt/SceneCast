@@ -1,7 +1,7 @@
 bl_info = {
     "name": "SceneCast",
     "author": "Alberto (AlbertoCGArt)",
-    "version": (1, 0, 0),
+    "version": (1, 1, 0),
     "blender": (4, 2, 0),
     "location": "View3D > Sidebar (N) > SceneCast",
     "description": "Record your modeling session -- mesh edits, selection, camera "

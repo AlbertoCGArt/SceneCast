@@ -1,7 +1,7 @@
 schema_version = "1.0.0"
 
 id = "scenecast"
-version = "1.0.0"
+version = "1.1.0"
 name = "SceneCast"
 tagline = "Record your modeling session and replay it as a tutorial or timelapse"
 maintainer = "Alberto (AlbertoCGArt)"
