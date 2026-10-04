@@ -21,7 +21,7 @@ from .overlay import SCENECAST_OT_keylogger, _add_draw_handler, _remove_draw_han
 from .ops import (SCENECAST_OT_toggle, SCENECAST_OT_clear, SCENECAST_OT_step,
                   SCENECAST_OT_play, SCENECAST_OT_export, SCENECAST_OT_diagnose,
                   _keylogger_watchdog)
-from .ui import SCENECAST_PT_panel
+from .ui import PANELS
 from .props import register_props, unregister_props
 
 _classes = (
@@ -32,8 +32,7 @@ _classes = (
     SCENECAST_OT_export,
     SCENECAST_OT_diagnose,
     SCENECAST_OT_keylogger,
-    SCENECAST_PT_panel,
-)
+) + PANELS
 
 
 def _ensure_handler():

@@ -2,6 +2,16 @@
 
 ## 1.1.0
 
+- **The panel reads in workflow order** — the one long SceneCast panel is now
+  a parent with sub-panels: Record (the button and one status line — steps,
+  keys, memory), **Capture Settings** (closed by default, locked while
+  recording, with the build number and Diagnose at the bottom), **Playback**
+  with **Step Details** folded inside it, and **Export**. Playback and Export
+  appear once there is something recorded. The step box is now one line —
+  step, the operator, elapsed time — and the Export box says hold, view and
+  size in one line instead of two pointing back up the panel. Clear Session
+  asks before discarding a take. No setting was renamed; saved files keep
+  theirs.
 - **Sessions stop eating memory** — a snapshot's topology is now int32 numpy
   buffers filled by `foreach_get`, instead of a Python list holding one tuple
   per edge and per face; faces are stored CSR-style (flat indices + a loop

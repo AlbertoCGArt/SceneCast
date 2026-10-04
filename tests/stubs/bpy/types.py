@@ -8,3 +8,4 @@ class SpaceView3D:
     def draw_handler_add(*a, **k): return object()
     @staticmethod
     def draw_handler_remove(*a, **k): pass
+class Menu: pass

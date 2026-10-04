@@ -107,6 +107,11 @@ class SCENECAST_OT_clear(Operator):
     bl_label = "Clear Session"
     bl_description = "Discard all recorded steps (unhides session objects, exits Edit Mode)"
 
+    def invoke(self, context, event):
+        # A whole take is gone at one click otherwise, and there is no undo
+        # for a session that lives in memory.
+        return context.window_manager.invoke_confirm(self, event)
+
     def execute(self, context):
         _exit_all_edit()
         for name in SESSION.all_names:
