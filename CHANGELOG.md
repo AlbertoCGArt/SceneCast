@@ -35,6 +35,13 @@
   loses the model out of the sides, and composited keystroke text is sized and
   placed from the shared layout table against the output height — a pixel size
   picked for 1080p was a rounding error at 4K.
+- **Keystrokes in the video look like the viewport's** — the exported video
+  burnt keys in as one line of white monospace, keys and operator run
+  together, because text strips use Blender's monospace font unless given one.
+  They now use the interface font, with the keys in grey and the operator in
+  blue on its own line beneath, as the viewport draws them. (The *Top Left*
+  keys option uses Blender's render stamp, whose single line and font are
+  Blender's own.)
 - **Exporting from an unsaved file** — every output path defaults to `//`,
   "next to the .blend", which has nothing to point at before the file is first
   saved; it resolved against whatever folder Blender started in, often the
