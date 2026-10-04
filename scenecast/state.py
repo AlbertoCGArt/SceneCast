@@ -54,6 +54,9 @@ class _Session:
         self.keys_captured_total = 0     # running count this session (panel signal)
         self.export_active = False       # true while rendering an export
         self.export_step_idx = 0
+        self.export_views = []           # camera per rendered frame, so text
+                                         # laid over the footage afterwards
+                                         # can find where things landed
         self.bytes_est = 0               # running session footprint; kept
                                          # incrementally because measuring it
                                          # per step is O(session) per step

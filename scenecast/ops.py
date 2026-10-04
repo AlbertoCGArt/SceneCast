@@ -391,6 +391,7 @@ class SCENECAST_OT_export(Operator):
             if _export_frame_handler not in bpy.app.handlers.frame_change_pre:
                 bpy.app.handlers.frame_change_pre.append(_export_frame_handler)
 
+            SESSION.export_views = []
             SESSION.export_active = True
             with context.temp_override(window=win, area=area, region=region):
                 bpy.ops.render.opengl(animation=True, view_context=True)

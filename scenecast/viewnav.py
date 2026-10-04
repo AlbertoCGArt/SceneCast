@@ -266,6 +266,43 @@ def _same_view(a, b):
         return False
 
 
+def view_spec(scene=None):
+    """The camera as it is right now, as plain data a projection can use later.
+
+    The export records one of these per frame. Anything laid over the footage
+    after the render -- a note pointing at a vertex -- has to know where that
+    vertex landed in that frame, and only the render knows: the view mode,
+    Smooth Motion, Punch In and a director camera all move the camera between
+    what was recorded and what actually renders. Plain numbers rather than
+    mathutils values, so nothing here holds a reference into Blender.
+    """
+    rv3d = _get_view3d_rv3d()
+    if rv3d is None:
+        return None
+    scene = scene or bpy.context.scene
+    try:
+        cam = getattr(scene, "camera", None)
+        if rv3d.view_perspective == 'CAMERA' and cam is not None:
+            data = cam.data
+            return {"kind": 'CAMERA',
+                    "matrix": [[float(v) for v in row] for row in cam.matrix_world],
+                    "type": data.type, "lens": float(data.lens),
+                    "sensor_fit": data.sensor_fit,
+                    "sensor_width": float(data.sensor_width),
+                    "sensor_height": float(data.sensor_height),
+                    "shift_x": float(data.shift_x), "shift_y": float(data.shift_y),
+                    "ortho_scale": float(data.ortho_scale)}
+        _win, area, _region = _find_view3d_context()
+        space = area.spaces.active if area is not None else None
+        return {"kind": 'VIEW', "persp": rv3d.view_perspective,
+                "rot": tuple(float(v) for v in rv3d.view_rotation),
+                "dist": float(rv3d.view_distance),
+                "loc": tuple(float(v) for v in rv3d.view_location),
+                "lens": float(getattr(space, "lens", VIEW_LENS))}
+    except Exception:
+        return None
+
+
 def apply_view_filters(idx, frac=0.0):
     """Run every registered filter over the live viewport. Never raises.
 

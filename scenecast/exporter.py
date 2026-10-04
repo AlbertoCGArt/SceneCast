@@ -4,7 +4,7 @@ import os
 import bpy
 
 from .state import SESSION, _EXPORT, KEY_MAX_SHOWN
-from .viewnav import _restore_view, _blend_view, apply_view_filters
+from .viewnav import _restore_view, _blend_view, apply_view_filters, view_spec
 from .replay import _apply_step_geometry, _interp_geometry
 from .overlay import _collapse, keys_for_step, op_label_for_step
 from .props import EXPORT_RESOLUTIONS
@@ -116,6 +116,26 @@ def _export_frame_handler(scene, depsgraph=None):
         else:
             _restore_view(SESSION.steps[idx])
     apply_view_filters(idx, frac)
+    _record_export_view(scene)
+
+
+def _record_export_view(scene):
+    """Keep the camera this frame renders with, at its frame's index.
+
+    Runs last in the frame handler, after the view mode and the view filters
+    have had their say, so what is kept is the camera the frame is drawn from.
+    """
+    frames = SESSION.export_views
+    i = scene.frame_current - 1
+    if i < 0:
+        return
+    while len(frames) < i:
+        frames.append(None)
+    spec = view_spec(scene)
+    if i == len(frames):
+        frames.append(spec)
+    else:
+        frames[i] = spec
 
 
 def _seq_strips(se):
