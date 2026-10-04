@@ -7,6 +7,7 @@ from bpy.types import Operator
 
 from .state import SESSION, KEY_FADE, KEY_MAX_SHOWN, KEY_LOOKBACK
 from . import layout
+from .opcredit import credited_op
 from .viewnav import _tag_redraw
 
 _REPEAT_WINDOW = 1.2       # seconds within which a repeated key collapses to xN
@@ -44,10 +45,13 @@ def keys_for_step(idx):
     # Its shortcut is deterministic, while logged keys get mis-credited: the
     # camera watchdog fires on a clock, so a step captured mid-extrude lands
     # between the E press and the geometry it produced, and claims the E.
-    op_id = step.get("op_id", "")
+    # Which operator that is comes from opcredit: a modal tool's geometry is
+    # captured before the tool is named, under the one that finished before.
+    own_id = step.get("op_id", "")
+    _name, op_id = _credited(idx)
     if op_id:
         prev_op = steps[idx - 1].get("op_id", "") if idx > 0 else ""
-        if step.get("geo_new") or op_id != prev_op:
+        if step.get("geo_new") or own_id != prev_op:
             combo = shortcut_for_operator(op_id)
             if combo:
                 return [combo]
@@ -65,18 +69,24 @@ def keys_for_step(idx):
     return [txt for txt, ts in log if t_start < ts <= t_end]
 
 
+def _credited(idx):
+    return credited_op(SESSION.steps, idx, shortcut_for_operator)
+
+
 def op_label_for_step(idx):
     """Operator label for a step, suppressed once it has gone stale.
 
     wm.operators keeps reporting the last operator that ran, so a camera step
     captured after an extrude would otherwise caption itself "Extrude Region
-    and Move" -- naming an edit that isn't happening in that frame.
+    and Move" -- naming an edit that isn't happening in that frame. And a step
+    that changed geometry is named for the operator that made the change,
+    which for a modal tool finishes -- and is reported -- steps later.
     """
     steps = SESSION.steps
     if not (0 <= idx < len(steps)):
         return ""
     step = steps[idx]
-    op = step.get("op", "")
+    op, _credited_id = _credited(idx)
     if not op or op == "(edit)":
         return ""                        # placeholder, not a real operator
     op_id = step.get("op_id", "")
