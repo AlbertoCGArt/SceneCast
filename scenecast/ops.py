@@ -15,12 +15,12 @@ from .capture import _capture_step, _watchdog_tick, _restore_collections
 from .overlay import keys_for_step
 from .replay import (_apply_step_geometry, _play_tick, end_playback_view,
                      set_playhead)
-from .exporter import (_export_frame_handler, _resolve_export_path,
-                       _resolve_export_dir, _stash_render, _restore_render,
+from .exporter import (_export_frame_handler, _stash_render, _restore_render,
                        setup_stamp, apply_video_settings, composite_text_video,
                        _stamp_text_for, export_resolution, export_aspect)
 from . import layout as sc_layout
 from . import meshdata
+from . import paths
 
 # ----------------------------------------------------------------------------
 def _keylogger_watchdog():
@@ -296,10 +296,6 @@ class SCENECAST_OT_export(Operator):
         if SESSION.recording:
             self.report({'WARNING'}, "Stop recording first")
             return {'CANCELLED'}
-        SESSION.playing = False
-        _exit_all_edit()               # export always starts from a clean slate
-        stash_view()                   # handed back in the finally below
-
         sc = context.scene
         rnd = sc.render
         # Export speed tracks playback exactly: each step lasts the same
@@ -307,10 +303,27 @@ class SCENECAST_OT_export(Operator):
         hold = max(1, round(sc.scenecast_step_hold * sc.scenecast_export_fps))
         fmt = sc.scenecast_export_format
 
+        # Everything that can refuse is checked before anything is touched:
+        # failing after the view is stashed and Edit Mode is left would
+        # rearrange the user's scene for nothing.
         win, area, region = _find_view3d_context()
         if area is None:
             self.report({'WARNING'}, "No 3D viewport found")
             return {'CANCELLED'}
+        try:
+            if fmt == 'MP4':
+                out, where = paths.output_file(
+                    sc.scenecast_export_path, "scenecast_session.mp4", ".mp4")
+            else:
+                folder, where = paths.output_dir(sc.scenecast_export_path)
+                out = os.path.join(folder, "frame_")
+        except paths.OutputPathError as e:
+            self.report({'ERROR'}, str(e))
+            return {'CANCELLED'}
+
+        SESSION.playing = False
+        _exit_all_edit()               # export always starts from a clean slate
+        stash_view()                   # handed back in the finally below
 
         placement = getattr(sc, "scenecast_keys_placement", 'CORNER')
         if not sc.scenecast_show_keys:
@@ -333,10 +346,6 @@ class SCENECAST_OT_export(Operator):
                 two_pass = False
                 placement = 'CORNER'
 
-        if fmt == 'MP4':
-            out = _resolve_export_path(sc.scenecast_export_path, ".mp4")
-        else:
-            out = os.path.join(_resolve_export_dir(sc.scenecast_export_path), "frame_")
         render_to = os.path.join(tmp_dir, "f_") if two_pass else out
 
         stash = _stash_render(sc, rnd)
@@ -393,7 +402,8 @@ class SCENECAST_OT_export(Operator):
                     sc, tmp_dir, out, hold, sc.scenecast_export_fps, texts,
                     sc_layout.scale_for(sc.scenecast_keys_size))
 
-            self.report({'INFO'}, "Exported to %s" % out)
+            self.report({'INFO'}, "Exported to %s%s"
+                        % (out, " (%s)" % where if where else ""))
             res = {'FINISHED'}
         except Exception as e:
             hint = ("set Keys to 'Top Left (fast)'" if two_pass

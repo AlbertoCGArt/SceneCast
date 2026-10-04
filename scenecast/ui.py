@@ -8,6 +8,8 @@ from .viewnav import _any_nonobject_mode
 from .overlay import _collapse, keys_for_step
 from .meshdata import format_bytes
 from .modifiers import describe_modifiers
+from . import paths
+
 
 
 def _edition_line():
@@ -164,6 +166,11 @@ class SCENECAST_PT_panel(Panel):
         ebox.label(text="Export", icon='RENDER_ANIMATION')
         ebox.prop(sc, "scenecast_export_format", text="")
         ebox.prop(sc, "scenecast_export_path", text="")
+        if paths.resolve(sc.scenecast_export_path)[1]:
+            # Blender paints a // path red on an unsaved file and stops there;
+            # this says what will actually happen instead.
+            ebox.label(text="Unsaved file: exports go to %s"
+                            % paths.fallback_label(), icon='INFO')
         ebox.prop(sc, "scenecast_export_res", text="")
         if sc.scenecast_export_res == 'CUSTOM':
             crow = ebox.row(align=True)

@@ -237,37 +237,6 @@ def composite_text_video(src_scene, png_dir, out_path, hold, fps, texts, scale=1
             pass
 
 
-def _resolve_export_path(p, ext):
-    ap = bpy.path.abspath(p) if p else ""
-    if not ap:
-        ap = os.path.join(bpy.app.tempdir, "scenecast_session" + ext)
-    root, e = os.path.splitext(ap)
-    if e.lower() != ext:
-        ap = root + ext
-    d = os.path.dirname(ap)
-    if d and not os.path.isdir(d):
-        try:
-            os.makedirs(d, exist_ok=True)
-        except Exception:
-            pass
-    return ap
-
-
-def _resolve_export_dir(p):
-    ap = bpy.path.abspath(p) if p else ""
-    if not ap:
-        return bpy.app.tempdir
-    d = ap if os.path.isdir(ap) else os.path.dirname(ap)
-    if not d:
-        d = bpy.app.tempdir
-    if not os.path.isdir(d):
-        try:
-            os.makedirs(d, exist_ok=True)
-        except Exception:
-            pass
-    return d
-
-
 def _stash_render(sc, rnd):
     return {
         "fs": sc.frame_start, "fe": sc.frame_end, "fc": sc.frame_current,
