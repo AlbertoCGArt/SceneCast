@@ -12,6 +12,10 @@
   size in one line instead of two pointing back up the panel. Clear Session
   asks before discarding a take. No setting was renamed; saved files keep
   theirs.
+- **Export footer** — an extension point beside the Export box hook:
+  `register_export_footer(fn)` draws under the Export button, where a hook
+  can only draw above it and choose what the button runs. A footer that
+  raises is reported in the box and the next one still draws.
 - **Sessions stop eating memory** — a snapshot's topology is now int32 numpy
   buffers filled by `foreach_get`, instead of a Python list holding one tuple
   per edge and per face; faces are stored CSR-style (flat indices + a loop

@@ -60,6 +60,31 @@ def export_operator(layout, context):
     return op_id
 
 
+# What goes *under* the button -- the state of a job the button started, a
+# second deliverable made from the same take. Footers only draw; the hooks
+# above decide what the button runs.
+_EXPORT_FOOTERS = []
+
+
+def register_export_footer(fn):
+    if fn not in _EXPORT_FOOTERS:
+        _EXPORT_FOOTERS.append(fn)
+
+
+def unregister_export_footer(fn):
+    if fn in _EXPORT_FOOTERS:
+        _EXPORT_FOOTERS.remove(fn)
+
+
+def export_footer(layout, context):
+    """Draw the footers below the Export button, one failure at a time."""
+    for fn in list(_EXPORT_FOOTERS):
+        try:
+            fn(layout, context)
+        except Exception as e:
+            layout.label(text="Extension failed: %s" % e, icon='ERROR')
+
+
 def _edition_line():
     """Which build this is, so a paid install is identifiable in place.
 
@@ -344,6 +369,7 @@ class SCENECAST_PT_export(_SubPanel, Panel):
         layout.label(text=export_summary(sc), icon='INFO')
         layout.operator(export_operator(layout, context), text="Export Session",
                         icon='RENDER_ANIMATION')
+        export_footer(layout, context)
 
 
 # Parents before children: Blender refuses a sub-panel whose parent is not
