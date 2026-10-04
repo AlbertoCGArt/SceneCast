@@ -9,6 +9,7 @@ from .replay import _apply_step_geometry, _interp_geometry
 from .overlay import _collapse, keys_for_step, op_label_for_step
 from .props import EXPORT_RESOLUTIONS
 from . import layout as sc_layout
+from . import fonts
 
 # Render-stamp settings we take over during export and put back afterwards.
 # The viewport keystroke overlay is a Python draw handler, and render.opengl
@@ -64,6 +65,22 @@ def _stamp_text_for(step, idx=None):
     if note and op:
         return "%s     %s" % (note, op)
     return note or op
+
+
+# The viewport overlay draws each keystroke chunk followed by this gap.
+KEY_GAP = "    "
+
+
+def overlay_lines(idx):
+    """(keys, operator) for a step, as the viewport overlay shows them.
+
+    Two lines, not one: the viewport draws the keystrokes and, under them in
+    blue, the operator that ran. An export that wants to look like the
+    viewport draws the same two -- the render stamp, which only has one line,
+    is the exception and uses _stamp_text_for.
+    """
+    keys = KEY_GAP.join(_collapse(keys_for_step(idx))[-KEY_MAX_SHOWN:])
+    return keys, op_label_for_step(idx)
 
 
 def setup_stamp(rnd, size):
@@ -187,14 +204,17 @@ def apply_video_settings(rnd, fps):
     rnd.fps = fps
 
 
-def composite_text_video(src_scene, png_dir, out_path, hold, fps, texts, scale=1.0):
+def composite_text_video(src_scene, png_dir, out_path, hold, fps, lines, scale=1.0):
     """Second pass: rebuild the rendered frames into a video with text burned in.
 
     render.opengl will not run Python draw handlers, and Blender's render stamp
     is locked to the top-left corner -- neither can put keystrokes where a
     screencast wants them. Feeding the frames back through the sequencer as an
-    image strip with text strips over it gives full control of position, size
-    and shadow.
+    image strip with text strips over it gives full control of position, size,
+    font, colour and shadow.
+
+    `lines` holds one (keys, operator) pair per step, from overlay_lines(): the
+    two lines the viewport draws, in its font, its colours and its bands.
     """
     files = sorted(f for f in os.listdir(png_dir) if f.lower().endswith(".png"))
     if not files:
@@ -214,9 +234,13 @@ def composite_text_video(src_scene, png_dir, out_path, hold, fps, texts, scale=1
         # same table the viewport overlay reads. A pixel size picked for
         # 1080p is a rounding error at 4K and covers half the frame on a
         # 1080x1920 vertical export.
-        band_y, band_size = sc_layout.band_norm("keys", scale)
         out_h = r.resolution_y * max(1, r.resolution_percentage) / 100.0
-        font_size = max(sc_layout.MIN_FONT_PX, band_size * out_h)
+        bands = {}
+        for name in ("keys", "op"):
+            y, size = sc_layout.band_norm(name, scale)
+            bands[name] = (y, max(sc_layout.MIN_FONT_PX, size * out_h))
+        # Without a font, text strips render in Blender's monospace default.
+        font = fonts.vse_font(fonts.ui_font_path())
 
         se = scene.sequence_editor_create()
         strips = _seq_strips(se)
@@ -225,26 +249,35 @@ def composite_text_video(src_scene, png_dir, out_path, hold, fps, texts, scale=1
         for fn in files[1:]:
             img.elements.append(fn)
 
-        for i, txt in enumerate(texts):
-            if not txt:
-                continue
+        for i, pair in enumerate(lines):
             start = 1 + i * hold
             if start > len(files):
                 break
             length = min(hold, len(files) + 1 - start)
             if length < 1:
                 continue
-            try:
-                t = new_text_strip(strips, "key%04d" % i, 2, start, length)
-            except Exception as e:      # one bad strip shouldn't lose the video
-                print("[SceneCast] text strip %d failed: %s" % (i, e))
-                continue
-            t.text = txt
-            # anchor_* is 4.x+, align_* is the older spelling; set both.
-            _set_any(t, (("font_size", font_size), ("use_shadow", True),
-                         ("anchor_x", 'CENTER'), ("anchor_y", 'BOTTOM'),
-                         ("align_x", 'CENTER'), ("align_y", 'BOTTOM'),
-                         ("location", (0.5, band_y))))
+            for text, band, channel, color in (
+                    (pair[0], "keys", 2, sc_layout.KEYS_COLOR),
+                    (pair[1], "op", 3, sc_layout.OP_COLOR)):
+                if not text:
+                    continue
+                try:
+                    t = new_text_strip(strips, "%s%04d" % (band, i), channel,
+                                       start, length)
+                except Exception as e:  # one bad strip shouldn't lose the video
+                    print("[SceneCast] text strip %d failed: %s" % (i, e))
+                    continue
+                t.text = text
+                y, size = bands[band]
+                # anchor_* is 4.x+, align_* is the older spelling; set both.
+                _set_any(t, (("font_size", size), ("color", color),
+                             ("use_shadow", True),
+                             ("shadow_color", (0.0, 0.0, 0.0, 0.9)),
+                             ("anchor_x", 'CENTER'), ("anchor_y", 'BOTTOM'),
+                             ("align_x", 'CENTER'), ("align_y", 'BOTTOM'),
+                             ("location", (0.5, y))))
+                if font is not None:
+                    _set_any(t, (("font", font),))
 
         apply_video_settings(r, fps)
         r.filepath = out_path

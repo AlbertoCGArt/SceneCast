@@ -17,7 +17,7 @@ from .replay import (_apply_step_geometry, _play_tick, end_playback_view,
                      set_playhead)
 from .exporter import (_export_frame_handler, _stash_render, _restore_render,
                        setup_stamp, apply_video_settings, composite_text_video,
-                       _stamp_text_for, export_resolution, export_aspect)
+                       overlay_lines, export_resolution, export_aspect)
 from . import layout as sc_layout
 from . import meshdata
 from . import paths
@@ -398,9 +398,9 @@ class SCENECAST_OT_export(Operator):
             SESSION.export_active = False
 
             if two_pass:
-                texts = [_stamp_text_for(SESSION.steps[i], i) for i in range(n)]
+                lines = [overlay_lines(i) for i in range(n)]
                 composite_text_video(
-                    sc, tmp_dir, out, hold, sc.scenecast_export_fps, texts,
+                    sc, tmp_dir, out, hold, sc.scenecast_export_fps, lines,
                     sc_layout.scale_for(sc.scenecast_keys_size))
 
             self.report({'INFO'}, "Exported to %s%s"

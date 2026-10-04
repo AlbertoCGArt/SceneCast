@@ -18,6 +18,12 @@ BANDS = {
     "chapter": (0.880, 0.052),
 }
 
+# Colours, for the same reason as the bands: the viewport overlay and every
+# export that burns text in read them from here, so a video's keystrokes are
+# the colour they were while scrubbing.
+KEYS_COLOR = (0.92, 0.92, 0.92, 0.9)
+OP_COLOR = (0.65, 0.82, 1.0, 0.85)
+
 # The user's overlay size preference scales text without moving the bands,
 # so the stack keeps its spacing at any size.
 SCALES = {'SMALL': 0.85, 'MEDIUM': 1.0, 'LARGE': 1.35}

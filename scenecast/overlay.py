@@ -392,7 +392,8 @@ def _draw_keys_overlay():
         x = max(20.0, (region.width - total) / 2.0)
         for (t, alpha), w in zip(chunks, widths):
             blf.position(fid, x, y, 0)
-            blf.color(fid, 0.92, 0.92, 0.92, alpha * 0.9)
+            r, g, b, a = layout.KEYS_COLOR
+            blf.color(fid, r, g, b, alpha * a)
             blf.draw(fid, t)
             x += w
 
@@ -401,7 +402,7 @@ def _draw_keys_overlay():
             _blf_size(fid, osize)
             w = blf.dimensions(fid, op_label)[0]
             blf.position(fid, max(20.0, (region.width - w) / 2.0), oy, 0)
-            blf.color(fid, 0.65, 0.82, 1.0, 0.85)
+            blf.color(fid, *layout.OP_COLOR)
             blf.draw(fid, op_label)
 
         blf.disable(fid, blf.SHADOW)
