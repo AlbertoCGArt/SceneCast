@@ -57,6 +57,10 @@
   Nothing in the free build registers a filter; it is what the Pro punch-in
   and director camera hang off, and it costs a single emptiness check per
   frame when unused.
+- **The export keeps its cameras** — each rendered frame records the camera it
+  was drawn from (after the view mode and any view filters), so text laid
+  over the footage afterwards can find where a point landed in that frame.
+  Used by Pro to keep a pinned note on its point.
 - **Export box hook** — an extension can draw into the Export box and choose
   which operator its button runs, so a paid build adds to the one Export
   button rather than growing a second export elsewhere. A hook that fails is
