@@ -58,3 +58,9 @@ def test_a_stale_edit_fails_the_build_instead_of_shipping_unbranded():
 def test_files_with_no_edits_pass_through_untouched():
     raw = b"# nothing to rebrand here\n"
     assert build._pro_text("capture.py", raw) == raw
+
+
+def test_pro_links_to_its_product_page():
+    text = build._pro_text("blender_manifest.toml",
+                           _read("blender_manifest.toml")).decode("utf-8")
+    assert 'website = "https://3dartstuff.com/scenecast/pro/"' in text

@@ -51,6 +51,9 @@ _PRO_EDITS = {
          # Blender's manifest tagline is length-limited, so this names the
          # tier rather than listing what is in it.
          'tagline = "Record, annotate, direct and export modeling sessions"'),
+        # Pro buyers land on the product page, not the public free repo.
+        ('website = "https://github.com/AlbertoCGArt/scenecast"',
+         'website = "https://3dartstuff.com/scenecast/pro/"'),
     ),
     "__init__.py": (
         ('"name": "SceneCast",', '"name": "SceneCast Pro",'),
