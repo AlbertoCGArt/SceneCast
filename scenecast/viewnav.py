@@ -236,8 +236,43 @@ def unregister_view_filter(fn):
         _VIEW_FILTERS.remove(fn)
 
 
+# What the view was before the filters touched it, and what they left behind.
+# A filter adjusts a view; it must never be handed its own previous output.
+# Recorded Views writes a fresh camera every frame so that never came up, but
+# Current View and the static views leave the camera alone between frames --
+# so each frame Punch In was tightening the frame before it, and reached full
+# zoom whatever its Strength said.
+_FILTER_VIEW = {"base": None, "result": None}
+
+
+def _read_view(rv3d):
+    try:
+        return (rv3d.view_perspective, rv3d.view_rotation.copy(),
+                float(rv3d.view_distance), rv3d.view_location.copy())
+    except Exception:
+        return None
+
+
+def _same_view(a, b):
+    """True if two views are the same camera, to float32 storage precision."""
+    if a is None or b is None or a[0] != b[0]:
+        return False
+    try:
+        scale = max(1.0, abs(a[2]))
+        return (abs(a[1].dot(b[1])) > 1.0 - 1e-6
+                and abs(a[2] - b[2]) <= 1e-5 * scale
+                and (a[3] - b[3]).length <= 1e-5 * scale)
+    except Exception:
+        return False
+
+
 def apply_view_filters(idx, frac=0.0):
     """Run every registered filter over the live viewport. Never raises.
+
+    Filters always start from the view they were *given*. If the camera is
+    still exactly where the filters left it, nothing else has set it since,
+    so it is put back to what they started from; if it has moved, whatever
+    moved it -- the view mode, or the artist orbiting -- is the new base.
 
     A filter that throws must not take playback or a half-finished render
     down with it, so each one is isolated -- but it is reported, because a
@@ -248,12 +283,19 @@ def apply_view_filters(idx, frac=0.0):
     rv3d = _get_view3d_rv3d()
     if rv3d is None:
         return
+    live = _read_view(rv3d)
+    base = _FILTER_VIEW["base"]
+    if base is not None and _same_view(live, _FILTER_VIEW["result"]):
+        _set_view(rv3d, *base)
+    else:
+        _FILTER_VIEW["base"] = live
     for fn in list(_VIEW_FILTERS):
         try:
             fn(rv3d, idx, frac)
         except Exception as e:
             print("[SceneCast] view filter %s failed: %s"
                   % (getattr(fn, "__name__", fn), e))
+    _FILTER_VIEW["result"] = _read_view(rv3d)
 
 
 # ----------------------------------------------------------------------------

@@ -379,6 +379,29 @@ def _drop_stray_custom_property(scene):
         pass
 
 
+def refresh_view():
+    """Re-apply the camera for the paused step after a view setting changed.
+
+    For anything that changes what the view filters would produce -- Punch In
+    strength, a director camera key. Without it the change only appeared on
+    the next scrub or the next playback frame, which reads as the setting not
+    working. Geometry is left alone: nothing about it changed, and rebuilding
+    a dense mesh for every slider nudge is not free.
+
+    Nothing to do while playing (the next tick redraws with the new setting)
+    or recording (the camera belongs to the artist).
+    """
+    n = len(SESSION.steps)
+    if n == 0 or SESSION.playing or SESSION.recording or SESSION.export_active:
+        return
+    sc = bpy.context.scene
+    idx = max(0, min(int(getattr(sc, "scenecast_playhead", 0)), n - 1))
+    if view_mode(sc) == 'RECORDED':
+        _restore_view(SESSION.steps[idx])
+    apply_view_filters(idx, 0.0)
+    _tag_redraw()
+
+
 def _playhead_update(self, context):
     if _QUIET:
         return
