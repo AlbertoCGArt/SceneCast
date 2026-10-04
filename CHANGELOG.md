@@ -35,12 +35,32 @@
   loses the model out of the sides, and composited keystroke text is sized and
   placed from the shared layout table against the output height — a pixel size
   picked for 1080p was a rounding error at 4K.
+- **Exporting from an unsaved file** — every output path defaults to `//`,
+  "next to the .blend", which has nothing to point at before the file is first
+  saved; it resolved against whatever folder Blender started in, often the
+  root of `C:` or Blender's install folder, and the export failed or landed
+  somewhere unexpected. An unsaved file now exports to `Documents\SceneCast`,
+  the panel says so under the (red) path field before you export, and the
+  report gives the full path afterwards. A folder that refuses a file comes
+  back as something to do about it — choose a folder you own, or save the
+  .blend — rather than an error number. The export also checks its
+  destination before touching the scene, instead of leaving Edit Mode and
+  moving the view first and then failing.
 - **View filters** — an extension point in `viewnav`: anything registered
   gets the last word on where the camera sits, in every view mode, on all
   three paths that move it (scrub, playback, export), with the step index and
-  the fraction between steps. Nothing in the free build registers one; it is
-  what the Pro punch-in and director camera hang off, and it costs a single
-  emptiness check per frame when unused.
+  the fraction between steps. Filters are always handed the view as it was
+  *before* filtering, never their own previous output — in views that do not
+  reset the camera every frame, that compounding is what made a 50%
+  punch-in creep to full zoom. `refresh_view()` re-applies the camera to the
+  paused step when a setting changes, so view settings take effect live.
+  Nothing in the free build registers a filter; it is what the Pro punch-in
+  and director camera hang off, and it costs a single emptiness check per
+  frame when unused.
+- **Export box hook** — an extension can draw into the Export box and choose
+  which operator its button runs, so a paid build adds to the one Export
+  button rather than growing a second export elsewhere. A hook that fails is
+  reported inside the box instead of blanking the rest of the panel.
 - **Fixed: the Scrub number now moves on Blender 5.0** — it sat at 0 through
   every recording and every playback, even though both were working. The
   playhead was moved with `scene["scenecast_playhead"] = idx`, a direct write
