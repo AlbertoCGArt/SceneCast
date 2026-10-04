@@ -11,6 +11,45 @@ from .modifiers import describe_modifiers
 from . import paths
 
 
+# ----------------------------------------------------------------------------
+# Export box extension point
+#
+# Each hook draws into the Export box just above its button, and may return
+# the id of the operator that button should run. That is how a paid build
+# routes the one Export button through its own pipeline: a second, separate
+# export panel is how branding came to exist and never be found.
+# ----------------------------------------------------------------------------
+_EXPORT_HOOKS = []
+
+
+def register_export_hook(fn):
+    if fn not in _EXPORT_HOOKS:
+        _EXPORT_HOOKS.append(fn)
+
+
+def unregister_export_hook(fn):
+    if fn in _EXPORT_HOOKS:
+        _EXPORT_HOOKS.remove(fn)
+
+
+def export_operator(layout, context):
+    """Draw the hooks and return the operator the Export button runs.
+
+    A hook that raises is reported inside the box rather than taking the
+    whole panel down with it -- one bad draw used to blank everything below
+    it, which is how a single typo hid the branding settings.
+    """
+    op_id = "scenecast.export"
+    for fn in list(_EXPORT_HOOKS):
+        try:
+            chosen = fn(layout, context)
+        except Exception as e:
+            layout.label(text="Extension failed: %s" % e, icon='ERROR')
+            continue
+        if chosen:
+            op_id = chosen
+    return op_id
+
 
 def _edition_line():
     """Which build this is, so a paid install is identifiable in place.
@@ -189,7 +228,8 @@ class SCENECAST_PT_panel(Panel):
         sub = ebox.row()
         sub.enabled = sc.scenecast_show_edit
         sub.prop(sc, "scenecast_export_edit")
-        ebox.operator("scenecast.export", icon='RENDER_ANIMATION')
+        ebox.operator(export_operator(ebox, context), text="Export Session",
+                      icon='RENDER_ANIMATION')
 
         layout.separator()
         drow = layout.row(align=True)
