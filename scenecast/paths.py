@@ -70,7 +70,7 @@ def unsaved_note():
             % fallback_label())
 
 
-def _cannot_write(folder, exc):
+def cannot_write(folder, exc):
     hint = "choose a folder you own"
     if not blend_saved():
         hint += ", or save the .blend first"
@@ -94,7 +94,7 @@ def ensure_writable_dir(folder):
             pass
         os.remove(probe)
     except OSError as e:
-        raise OutputPathError(_cannot_write(folder, e))
+        raise OutputPathError(cannot_write(folder, e))
     return folder
 
 
