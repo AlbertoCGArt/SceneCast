@@ -257,7 +257,7 @@ class SCENECAST_PT_playback(_SubPanel, Panel):
         sc = context.scene
         n = len(SESSION.steps)
 
-        layout.prop(sc, "scenecast_playhead", text="Scrub", slider=True)
+        layout.prop(sc, "scenecast_scrub_step", text="Scrub", slider=True)
         rr = layout.row(align=True)
         rr.operator("scenecast.step", text="", icon='REW').mode = 'FIRST'
         rr.operator("scenecast.step", text="", icon='TRIA_LEFT').mode = 'PREV'

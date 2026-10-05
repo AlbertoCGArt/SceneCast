@@ -7,7 +7,7 @@ from bpy.props import (IntProperty, BoolProperty, EnumProperty,
 from .replay import _playhead_update
 
 _PROP_NAMES = (
-    "scenecast_playhead", "scenecast_view_mode", "scenecast_follow_tip",
+    "scenecast_playhead", "scenecast_scrub_step", "scenecast_view_mode", "scenecast_follow_tip",
     "scenecast_step_hold", "scenecast_loop", "scenecast_smooth_view",
     "scenecast_show_edit", "scenecast_capture_context", "scenecast_restore_context",
     "scenecast_capture_view", "scenecast_capture_modifiers",
@@ -32,10 +32,27 @@ EXPORT_RESOLUTIONS = {
 }
 
 
+def _scrub_get(scene):
+    return int(scene.scenecast_playhead) + 1
+
+
+def _scrub_set(scene, value):
+    # Through the playhead property, so its update replays the step.
+    scene.scenecast_playhead = max(0, int(value) - 1)
+
+
 def register_props():
     S = bpy.types.Scene
     S.scenecast_playhead = IntProperty(
         name="Step", default=0, min=0, soft_max=100000, update=_playhead_update)
+    # What the Scrub slider shows: the playhead counted from 1, as every other
+    # step number in the panel is. Nothing is stored -- scenecast_playhead
+    # stays the 0-based index that saved files and every module read.
+    S.scenecast_scrub_step = IntProperty(
+        name="Step", min=1, soft_min=1, soft_max=100001,
+        get=_scrub_get, set=_scrub_set,
+        description="The step under the playhead. Drag to move through the "
+                    "session")
     S.scenecast_view_mode = EnumProperty(
         name="View", default='RECORDED',
         items=[('CURRENT', "Current View",
