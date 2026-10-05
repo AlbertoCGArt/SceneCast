@@ -123,8 +123,34 @@ class _Scene:
 
 
 def test_export_summary_names_a_custom_size_by_its_pixels():
-    assert ui.export_summary(_Scene()) == \
-        "0.80s / step  ·  RECORDED  ·  1080x1350"
+    assert ui.export_summary(_Scene()) == ("0.80s / step  ·  RECORDED",
+                                           "1080 x 1350")
+
+
+# What fits on one line at Blender's default sidebar width, 280 px at scale
+# 1.0, in the interface font: "0.80s / step  ·  Recorded Views", 31
+# characters, fits with room to spare in Blender 5.2.
+FITS = 32
+
+
+def test_the_export_summary_fits_the_default_sidebar():
+    """On one line the default-width sidebar cut the size off mid-word."""
+    class Sc(_Scene):
+        scenecast_export_res = 'UHD4K'
+    _line1, line2 = ui.export_summary(Sc())
+    assert len("0.80s / step  ·  Recorded Views") <= FITS
+    assert line2 == "3840 x 2160"
+
+
+def test_the_status_line_fits_with_the_memory_on_its_own_line():
+    assert ui.status_text(1200, 45000) == "1200 steps  ·  45000 keys"
+    assert len(ui.status_text(1200, 45000)) <= FITS
+    assert ui.status_text(1, 1) == "1 step  ·  1 key"
+
+
+def test_the_record_panel_draws_memory_on_a_line_of_its_own():
+    src = inspect.getsource(ui.SCENECAST_PT_panel.draw)
+    assert '"Memory: " + mem' in src
 
 
 def test_memory_readout_warns_at_three_quarters(session, monkeypatch):

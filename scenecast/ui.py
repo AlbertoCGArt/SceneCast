@@ -115,6 +115,12 @@ def memory_readout(sc):
     return format_bytes(used), 'NONE'
 
 
+def status_text(n_steps, n_keys):
+    """'44 steps  ·  37 keys' -- the first line under Record."""
+    return "%d step%s  ·  %d key%s" % (
+        n_steps, "" if n_steps == 1 else "s", n_keys, "" if n_keys == 1 else "s")
+
+
 def _enum_name(sc, prop):
     try:
         return sc.bl_rna.properties[prop].enum_items[getattr(sc, prop)].name
@@ -143,21 +149,25 @@ def step_summary(idx, n, step, t0, op=None):
         idx + 1, n, op, elapsed_text(step.get("t", t0) - t0))
 
 
-def resolution_name(sc):
-    if getattr(sc, "scenecast_export_res", 'SCENE') == 'CUSTOM':
-        return "%dx%d" % (sc.scenecast_export_res_x, sc.scenecast_export_res_y)
-    return _enum_name(sc, "scenecast_export_res")
+def resolution_size(sc):
+    """'1920 x 1080', or 'Scene size' when Output Properties decide."""
+    from .exporter import export_resolution
+    res = export_resolution(sc)
+    if res is None:
+        return "Scene size"
+    return "%d x %d" % res
 
 
 def export_summary(sc):
-    """'0.80s / step  ·  Recorded Views  ·  1080p  (1920x1080)'.
+    """('0.80s / step  ·  Recorded Views', '1920 x 1080') -- what the export uses.
 
-    Hold and View are set in Playback, and the export follows them; one line
-    here says so instead of two labels pointing back up the panel.
+    Hold and View are set in Playback, and the export follows them; this
+    says so instead of two labels pointing back up the panel. Two lines: on
+    one, the default-width sidebar cut the size off mid-word.
     """
-    return "%.2fs / step  ·  %s  ·  %s" % (
-        sc.scenecast_step_hold, _enum_name(sc, "scenecast_view_mode"),
-        resolution_name(sc))
+    return ("%.2fs / step  ·  %s" % (sc.scenecast_step_hold,
+                                         _enum_name(sc, "scenecast_view_mode")),
+            resolution_size(sc))
 
 
 def _has_steps(context):
@@ -194,9 +204,12 @@ class SCENECAST_PT_panel(Panel):
             icon='SNAP_FACE' if SESSION.recording else 'REC',
             depress=SESSION.recording,
         )
+        # Two lines: on one, the default-width sidebar cut the memory figure
+        # off -- the one number that says whether a long take will fit.
+        col = layout.column(align=True)
+        col.label(text=status_text(n, SESSION.keys_captured_total))
         mem, icon = memory_readout(sc)
-        layout.label(text="%d steps  ·  %d keys  ·  %s"
-                          % (n, SESSION.keys_captured_total, mem), icon=icon)
+        col.label(text="Memory: " + mem, icon=icon)
         if SESSION.memory_stopped:
             box = layout.box()
             box.alert = True
@@ -233,7 +246,7 @@ class SCENECAST_PT_capture(_SubPanel, Panel):
         krow = layout.row(align=True)
         krow.prop(sc, "scenecast_show_keys")
         krow.prop(sc, "scenecast_keys_mouse")
-        krow.prop(sc, "scenecast_keys_size", text="")
+        layout.prop(sc, "scenecast_keys_size", text="Key Size")
         layout.prop(sc, "scenecast_memory_limit", text="Memory Limit (MB)")
         layout.prop(sc, "scenecast_follow_tip")
 
@@ -366,7 +379,10 @@ class SCENECAST_PT_export(_SubPanel, Panel):
         sub = layout.row()
         sub.enabled = sc.scenecast_show_edit
         sub.prop(sc, "scenecast_export_edit")
-        layout.label(text=export_summary(sc), icon='INFO')
+        line1, line2 = export_summary(sc)
+        col = layout.column(align=True)
+        col.label(text=line1, icon='INFO')
+        col.label(text=line2, icon='BLANK1')
         layout.operator(export_operator(layout, context), text="Export Session",
                         icon='RENDER_ANIMATION')
         export_footer(layout, context)
