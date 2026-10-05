@@ -140,8 +140,11 @@ def composite(tmp_path, monkeypatch, steps):
 
 def test_keys_and_operator_become_two_strips(composite):
     texts, _font = composite
+    # The duplicate step names its operator, so its shortcut outranks the two
+    # logged presses. Before the recorded 'OBJECT_OT_duplicate_move' id was
+    # normalised, the lookup missed and the logged "Shift+D x2" showed.
     assert sorted(t.text for t in texts) == ["Duplicate Objects", "G", "Move",
-                                             "Shift+D ×2"]
+                                             "Shift+D"]
 
 
 def test_every_strip_is_in_the_interface_font(composite):

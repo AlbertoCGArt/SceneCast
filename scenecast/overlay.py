@@ -7,7 +7,7 @@ from bpy.types import Operator
 
 from .state import SESSION, KEY_FADE, KEY_MAX_SHOWN, KEY_LOOKBACK
 from . import layout
-from .opcredit import credited_op
+from .opcredit import credited_op, op_key
 from .viewnav import _tag_redraw
 
 _REPEAT_WINDOW = 1.2       # seconds within which a repeated key collapses to xN
@@ -202,6 +202,11 @@ def shortcut_for_operator(idname):
     shortcut back out of the user keymap gives a correct label for what
     triggered the step regardless. Cached: the keymap walk is not cheap.
     """
+    # Sessions record wm.operators' C-style ids ('MESH_OT_bevel'); keymaps
+    # and the menu table use the Python form ('mesh.bevel'). Looked up as
+    # recorded, no step ever found its shortcut -- the keys under a modal
+    # Bevel's cuts stayed blank whenever the logger had nothing for them.
+    idname = op_key(idname)
     if not idname:
         return ""
     if idname in _SHORTCUT_CACHE:
